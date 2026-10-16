@@ -9,7 +9,7 @@ export function adaptiveRoutingHeader(country?: string): string {
   const insideIran = country?.toUpperCase() === "IR";
   const privateRanges = ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16"];
   const profile = {
-    Name: insideIran ? "Aphrodite · Iran Direct + Smart Global" : "Aphrodite · Smart Global + Iran Exit",
+    Name: "🧠 هوشمند",
     GlobalProxy: "true",
     RemoteDNSType: "DoH",
     RemoteDNSDomain: "https://cloudflare-dns.com/dns-query",

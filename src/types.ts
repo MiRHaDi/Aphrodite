@@ -14,6 +14,7 @@ export interface Env {
   TUNNEL_COOLDOWN_SECONDS?: string;
   EDGE_ADDRESSES?: string;
   PUBLIC_EDGE_HOST?: string;
+  SUBSCRIPTION_GATEWAYS_JSON?: string;
   EDGE_HOST_ALIASES?: string;
   EDGE_ENDPOINTS_JSON?: string;
   EDGE_ROTATION_MINUTES?: string;
