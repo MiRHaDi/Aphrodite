@@ -8,6 +8,13 @@ import {deployRender} from '../installer/render.mjs';
 let directory;
 afterEach(async()=>{vi.unstubAllGlobals();if(directory)await rm(directory,{recursive:true,force:true});});
 describe('installer adapters',()=>{
+ it('reports a provider block without exposing CLI secrets',async()=>{
+  try{await run(process.execPath,['-e',"process.stderr.write('fake-password code: 8000119');process.exit(1)"]);throw Error('Expected failure');}catch(error){expect(error.message).toContain('8000119');expect(error.message).not.toContain('fake-password');}
+ });
+ it('reports a structured provider block without exposing its response body',async()=>{
+  vi.stubGlobal('fetch',vi.fn(async()=>Response.json({success:false,errors:[{code:8000119,message:'private-value'}]},{status:400})));
+  await expect(jsonRequest('https://api.example.test')).rejects.toThrow('8000119');
+ });
  it('does not certify transient success followed by a failing worker',async()=>{
   let checks=0;
   vi.stubGlobal('fetch',vi.fn(async url=>String(url).includes('/api/overview')?Response.json({ok:++checks===1}):new Response(null,{status:404})));

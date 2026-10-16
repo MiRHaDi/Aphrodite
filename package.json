@@ -22,6 +22,7 @@
     "@cloudflare/workers-types": "^5.20261016.1",
     "ssh2": "^1.17.0",
     "typescript": "^5.9.3",
+    "undici": "^7.29.1",
     "vitest": "^5.0.5",
     "wrangler": "^4.151.1"
   },

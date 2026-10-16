@@ -2,6 +2,8 @@
 
 Current live validation and final-release blockers: [Cloudflare validation](CLOUDFLARE_VALIDATION.md). Client negotiation details: [Client profiles](CLIENT_PROFILES.md).
 
+For deployment-network failures the installer can resolve the public hostname using Google's HTTPS DNS endpoint at 8.8.8.8. It preserves hostname/SNI and normal certificate verification; private paths, tokens and request headers are not sent to DNS. HTTP errors are returned without trying other IPs. Cloudflare block code 8000119 stops deployment and requires provider review.
+
 Extract the source package and run `./install.ps1 --provider workers` in PowerShell, or `bash install.sh --provider pages` on Linux/macOS. The bootstrap downloads official Node 24 with SHA256 verification and installs locked dependencies. Existing Node users can run `node installer/cli.mjs`. Tokens are entered with hidden input; generated administrator credentials are printed once in an interactive terminal. No additional windows are opened.
 
 Providers: `workers`, `pages`, `railway`, `render`, `docker`, `vps`, `bundle`. Use `--preview` for a build without provider mutations or credentials. Every installation has independent accounting; installations do not share quotas.

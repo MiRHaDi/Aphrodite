@@ -1,5 +1,6 @@
 import {parseArgs} from 'node:util';
 import {interfaceFor} from './ui.mjs';
+import {closeDeploymentConnections} from './network.mjs';
 import {configuration,name} from './common.mjs';
 import {buildArtifact} from './build.mjs';
 import {deployCloudflare} from './cloudflare.mjs';
@@ -38,4 +39,4 @@ try{
   const result=await deploy(options,env,artifact);
   console.log(JSON.stringify({...result,verified:true,verificationScope:'private-api-and-empty-root',transportVerified:false,buildId:artifact.manifest.buildId},null,2));
   if(process.stdout.isTTY){ui.success(ui.pick('Private API and empty-root readiness passed.','سلامت API خصوصی و پاسخ خالی ریشه تأیید شد.'));console.log('Management: '+result.url+'/'+env.ADMIN_PATH);console.log('Administrator token (save privately): '+env.ADMIN_TOKEN);console.log(ui.pick('Save both values. Outbound connectivity requires npm run test:live.','هر دو مقدار را خصوصی ذخیره کنید. آزمون اتصال خروجی با npm run test:live انجام می‌شود.'));}
-}catch(error){let message=String(error.message||'Installation failed');for(const value of [options?.token,options?.password,env?.ADMIN_TOKEN,...Object.entries(env||{}).filter(([key])=>/TOKEN|SECRET|PASSWORD/.test(key)).map(([,value])=>value)])if(value)message=message.replaceAll(value,'[redacted]');console.error(message);if(env&&process.stdout.isTTY){console.log('Recovery path: /'+env.ADMIN_PATH);console.log('Recovery administrator token (save privately): '+env.ADMIN_TOKEN);}process.exitCode=1;}
+}catch(error){let message=String(error.message||'Installation failed');for(const value of [options?.token,options?.password,env?.ADMIN_TOKEN,...Object.entries(env||{}).filter(([key])=>/TOKEN|SECRET|PASSWORD/.test(key)).map(([,value])=>value)])if(value)message=message.replaceAll(value,'[redacted]');console.error(message);if(env&&process.stdout.isTTY){console.log('Recovery path: /'+env.ADMIN_PATH);console.log('Recovery administrator token (save privately): '+env.ADMIN_TOKEN);}process.exitCode=1;}finally{await closeDeploymentConnections();}

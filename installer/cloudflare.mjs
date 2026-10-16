@@ -1,5 +1,6 @@
-import {readFile,readdir,mkdir,writeFile} from 'node:fs/promises';
-import {join} from 'node:path';
+import {readFile,readdir,mkdtemp,rm,writeFile} from 'node:fs/promises';
+import {join,resolve,sep} from 'node:path';
+import {tmpdir} from 'node:os';
 import {jsonRequest,required,run,root,verify} from './common.mjs';
 const base='https://api.cloudflare.com/client/v4/';
 export async function deployCloudflare(options,env,artifact){
@@ -30,9 +31,12 @@ export async function deployCloudflare(options,env,artifact){
   }
   const config={production:{compatibility_date:'2026-10-03',compatibility_flags:['global_fetch_strictly_public'],d1_databases:{DB:{id:database.uuid}},env_vars:Object.fromEntries(Object.entries(env).map(([name,value])=>[name,{type:/TOKEN|PASSWORD|SECRET|ADMIN_PATH/.test(name)?'secret_text':'plain_text',value:String(value)}]))}};
   await jsonRequest(base+prefix+'pages/projects',{token,method:'POST',body:{name:options.name,production_branch:'main',deployment_configs:config}});
-  const assets=join(artifact.directory,'pages');await mkdir(assets,{recursive:true});await writeFile(join(assets,'_worker.js'),artifact.code);await writeFile(join(assets,'_routes.json'),JSON.stringify({version:1,include:['/*'],exclude:[]}));
-  // An existing checkout's wrangler.toml must never override the new project's bindings.
-  await run(process.execPath,[join(root,'node_modules/wrangler/bin/wrangler.js'),'pages','deploy',assets,'--project-name',options.name,'--branch','main'],{cwd:artifact.directory,env:{...process.env,CLOUDFLARE_API_TOKEN:token,CLOUDFLARE_ACCOUNT_ID:account,CLOUDFLARE_SEND_METRICS:'false'}});
+  // A separate OS temporary directory prevents ancestor checkout configuration from being read.
+  const assets=await mkdtemp(join(tmpdir(),'aphrodite-pages-'));
+  try{
+    await writeFile(join(assets,'_worker.js'),artifact.code);await writeFile(join(assets,'_routes.json'),JSON.stringify({version:1,include:['/*'],exclude:[]}));
+    await run(process.execPath,[join(root,'node_modules/wrangler/bin/wrangler.js'),'pages','deploy',assets,'--project-name',options.name,'--branch','main'],{cwd:assets,env:{...process.env,CLOUDFLARE_API_TOKEN:token,CLOUDFLARE_ACCOUNT_ID:account,CLOUDFLARE_SEND_METRICS:'false'}});
+  }finally{const target=resolve(assets);if(target.startsWith(resolve(tmpdir())+sep)&&target.split(sep).at(-1).startsWith('aphrodite-pages-'))await rm(target,{recursive:true,force:true});}
   if(options.domain){
     await jsonRequest(base+prefix+'pages/projects/'+options.name+'/domains',{token,method:'POST',body:{name:options.domain}});
     const records=(await jsonRequest(base+'zones/'+options.zone+'/dns_records?name='+encodeURIComponent(options.domain),{token})).result;
