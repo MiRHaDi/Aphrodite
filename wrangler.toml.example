@@ -9,6 +9,10 @@ database_name = "aphrodite-db"
 database_id = "REPLACE_WITH_D1_DATABASE_ID"
 
 [vars]
+PUBLIC_EDGE_HOST = "smart.dr-mirhadi.ir"
+EDGE_ROTATION_MINUTES = "60"
+# Optional verified tuples: [{"address":"203.0.113.10","sni":"edge.example.com","host":"edge.example.com"}]
+# EDGE_ENDPOINTS_JSON = '[]'
 CONTROL_PLANE_ORIGIN = "https://panel.example.com"
 BACKUP_ORIGINS = "https://backup-panel.example.com"
 PUBLIC_CACHE_SECONDS = "120"
