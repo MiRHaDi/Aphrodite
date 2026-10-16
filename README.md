@@ -79,3 +79,9 @@ npm run dev
 ```
 
 Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+
+## Portable deployment
+
+[Persian installer guide](docs/INSTALLER.fa.md) | [English installer guide](docs/INSTALLER.md) | [Archive review](docs/DEPLOYMENT_PACKAGE_REVIEW.fa.md)
+
+Workers, Pages, Railway, Render, Docker and SSH installers: `node installer/cli.mjs --help`. Bootstrap with `install.ps1` or `bash install.sh`. Live provider deployments remain unverified; see prerequisites and limits in the guide.

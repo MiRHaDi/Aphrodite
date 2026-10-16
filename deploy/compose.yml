@@ -1,0 +1,34 @@
+services:
+  panel:
+    build:
+      context: ..
+      args:
+        APHRODITE_BUILD_NONCE: ${APHRODITE_BUILD_NONCE:?Generate a fresh build nonce}
+    restart: unless-stopped
+    environment:
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?Supply in the active process environment}
+      ADMIN_PATH: ${ADMIN_PATH:?Supply a UUID or custom private path}
+      PUBLIC_EDGE_HOST: ${DOMAIN:-}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+    ports:
+      - "127.0.0.1:${PORT:-8080}:8080"
+    volumes:
+      - data:/data
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+  tls:
+    image: caddy:2-alpine
+    profiles: [tls]
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - tls-data:/data
+      - tls-config:/config
+volumes:
+  data:
+  tls-data:
+  tls-config:

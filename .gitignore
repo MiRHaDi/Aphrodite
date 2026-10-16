@@ -8,3 +8,8 @@ coverage/
 wrangler.toml
 *.log
 .DS_Store
+
+.artifacts/
+.data/
+.env*
+*.sqlite*

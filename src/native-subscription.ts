@@ -33,7 +33,7 @@ export async function nativeSubscription(request:Request,env:Env,account:NativeA
   const status=await response.json() as {usedBytes:number;requests:number};
   if((settings.dataLimitBytes&&status.usedBytes>=settings.dataLimitBytes)||(settings.requestLimit&&status.requests>=settings.requestLimit))return text('Account quota exceeded',403,{'cache-control':'no-store'});
   const routes=tunnelMap(env),countries=env.NATIVE_RELAY_UUID?['smart','us','nl','sg','ir','de','turkey'].filter(country=>routes['/edge/'+country]?.length):['smart'];
-  const url=new URL(request.url),endpoint=subscriptionEndpoint(env,account.username),host=endpoint.host,links=nativeLinks(account,host,Date.now(),countries,endpoint),requested=url.searchParams.get('format');
+  const url=new URL(request.url),endpoint=subscriptionEndpoint({...env,PUBLIC_EDGE_HOST:env.PUBLIC_EDGE_HOST||url.hostname},account.username),host=endpoint.host,links=nativeLinks(account,host,Date.now(),countries,endpoint),requested=url.searchParams.get('format');
   const format=requested||(/clash|mihomo/i.test(request.headers.get('user-agent')||'')?'clash':'base64');
   let body='',contentType='text/plain; charset=utf-8';
   if(format==='clash'){

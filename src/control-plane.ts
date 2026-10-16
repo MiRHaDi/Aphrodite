@@ -75,7 +75,7 @@ export async function nodes(env: Env): Promise<Response> {
 
 export async function createUser(request: Request, env: Env): Promise<Response> {
   let input: unknown; try { input = await request.json(); } catch { return error("Invalid JSON", 400); }
-  if(input&&typeof input==='object'&&(input as {engine?:string}).engine==='native')return createNative(input as Record<string,unknown>,env);
+  if(input&&typeof input==='object'&&((input as {engine?:string}).engine==='native'||(!env.CONTROL_PLANE_ORIGIN&&nativeEnabled(env))))return createNative(input as Record<string,unknown>,env);
   if (!validUserInput(input)) return error("Invalid user settings", 400);
   const expire = input.unlimited ? null : Math.floor(Date.now() / 1000) + input.days * 86400;
   const dataLimit = input.unlimited ? 0 : Math.round(input.dataGb * 1073741824);

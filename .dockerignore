@@ -1,0 +1,14 @@
+.git
+.wrangler
+.artifacts
+node_modules
+dist*
+wrangler.toml
+.dev.vars
+*.log
+.env*
+*.pem
+*.key
+*.sqlite*
+.ssh
+test
