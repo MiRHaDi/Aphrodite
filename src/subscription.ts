@@ -4,6 +4,8 @@ import { text } from "./responses";
 import { policyDenial, policyFor, recordAccessWindow } from "./policies";
 import type { Env, SubscriptionRoute } from "./types";
 import { compatibilitySubscription } from "./subscription-profile";
+import { findNative } from './native-accounts';
+import { nativeSubscription } from './native-subscription';
 
 export function usernameFromPath(pathname: string): string | null {
   const match = pathname.match(/^\/feed\/([^/]+)\/?$/);
@@ -28,6 +30,8 @@ async function fetchFirst(request: Request, env: Env, path: string): Promise<Res
 }
 
 export async function subscription(request: Request, env: Env, username: string, ctx: ExecutionContext): Promise<Response> {
+  const native = await findNative(env, username);
+  if (native) return nativeSubscription(request,env,native);
   const country = typeof request.cf?.country === "string" ? request.cf.country : undefined;
   const edgeCache = (caches as CacheStorage & { default: Cache }).default;
   const policy = await policyFor(request, env, username, ctx);

@@ -13,6 +13,11 @@ export interface Env {
   TUNNEL_CONNECT_TIMEOUT_MS?: string;
   TUNNEL_COOLDOWN_SECONDS?: string;
   EDGE_ADDRESSES?: string;
+  ACCOUNT_STATE?: DurableObjectNamespace;
+  NATIVE_ENABLED?: string;
+  NATIVE_RELAY_UUID?: string;
+  CF_ANALYTICS_TOKEN?: string;
+  CF_ACCOUNT_ID?: string;
 }
 
 export interface TunnelTarget { origin: string; path: string; priority?: number; label?: string }

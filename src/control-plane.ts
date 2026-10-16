@@ -1,6 +1,8 @@
 import { DEFAULT_INBOUNDS, origins } from "./config";
 import { error, json } from "./responses";
 import type { CreateUserInput, Env } from "./types";
+import { createNative, listNative, nativeEnabled } from './native-accounts';
+import { settingsFor } from './native-types';
 
 let cachedToken: { value: string; expiresAt: number } | undefined;
 
@@ -41,21 +43,26 @@ function validUserInput(value: unknown): value is CreateUserInput {
   const input = value as Record<string, unknown>;
   return typeof input.username === "string" && /^[A-Za-z0-9_.-]{3,32}$/.test(input.username)
     && Number.isInteger(input.days) && Number(input.days) >= 1 && Number(input.days) <= 3650
+    && (input.unlimited === undefined || typeof input.unlimited === 'boolean')
     && Number.isFinite(input.dataGb) && Number(input.dataGb) >= 1 && Number(input.dataGb) <= 100000;
 }
 
 export async function overview(env: Env): Promise<Response> {
+  const native = await listNative(env);
   const [users, nodes] = await Promise.all([api(env, "/api/users?limit=1000&offset=0"), api(env, "/api/nodes")]);
-  if (!users.ok || !nodes.ok) return error("Unable to load control-plane overview", 502);
+  if (!users.ok || !nodes.ok) return nativeEnabled(env) ? json({ok:true,nativeEnabled:nativeEnabled(env),users:native.length,activeUsers:native.filter(a=>a.enabled&&(!a.expires_at||a.expires_at>Date.now()/1000)).length,nodes:0,connectedNodes:0,degraded:true}) : error("Unable to load control-plane overview", 502);
   const userData = await users.json() as { users?: Array<{ status?: string }> };
   const nodeData = await nodes.json() as Array<{ status?: string }>;
   const list = userData.users || [];
-  return json({ ok: true, users: list.length, activeUsers: list.filter(user => user.status === "active").length,
+  return json({ ok: true, nativeEnabled:nativeEnabled(env), users: list.length+native.length, activeUsers: list.filter(user => user.status === "active").length+native.filter(a=>a.enabled&&(!a.expires_at||a.expires_at>Date.now()/1000)).length,
     nodes: nodeData.length, connectedNodes: nodeData.filter(node => node.status === "connected").length });
 }
 
 export async function users(env: Env): Promise<Response> {
-  return api(env, "/api/users?limit=1000&offset=0");
+  const native=await listNative(env),response=await api(env, "/api/users?limit=1000&offset=0");
+  if(!native.length&&response.ok)return response;if(!native.length&&!nativeEnabled(env))return response;
+  const data=response.ok?await response.json() as {users?:unknown[]}:{};
+  return json({users:[...native.map(a=>({username:a.username,status:!a.enabled?'disabled':a.expires_at&&a.expires_at<Date.now()/1000?'expired':'active',used_traffic:null,data_limit:settingsFor(a).dataLimitBytes,expire:a.expires_at,engine:'native'})),...(data.users||[])]});
 }
 
 export async function nodes(env: Env): Promise<Response> {
@@ -68,6 +75,7 @@ export async function nodes(env: Env): Promise<Response> {
 
 export async function createUser(request: Request, env: Env): Promise<Response> {
   let input: unknown; try { input = await request.json(); } catch { return error("Invalid JSON", 400); }
+  if(input&&typeof input==='object'&&(input as {engine?:string}).engine==='native')return createNative(input as Record<string,unknown>,env);
   if (!validUserInput(input)) return error("Invalid user settings", 400);
   const expire = input.unlimited ? null : Math.floor(Date.now() / 1000) + input.days * 86400;
   const dataLimit = input.unlimited ? 0 : Math.round(input.dataGb * 1073741824);

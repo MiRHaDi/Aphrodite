@@ -9,6 +9,7 @@ database_name = "aphrodite-db"
 database_id = "REPLACE_WITH_D1_DATABASE_ID"
 
 [vars]
+NATIVE_ENABLED = "false"
 CONTROL_PLANE_ORIGIN = "https://panel.example.com"
 BACKUP_ORIGINS = "https://backup-panel.example.com"
 PUBLIC_CACHE_SECONDS = "120"

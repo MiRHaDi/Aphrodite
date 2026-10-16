@@ -1,6 +1,6 @@
 {
   "name": "aphrodite-edge",
-  "version": "1.5.1",
+  "version": "2.0.0-beta.1",
   "private": true,
   "type": "module",
   "description": "A five-language Cloudflare edge workspace and resilient subscription gateway.",
@@ -22,5 +22,8 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "qrcode-generator": "^2.0.4"
   }
 }

@@ -10,6 +10,10 @@
 
 Aphrodite turns a Cloudflare Worker into a small, auditable edge layer in front of an authorized control plane. It keeps public subscription URLs stable, adds adaptive client routing, fails over between authorized origins, exposes configured WebSocket transports, and provides a polished Persian/English-ready administration panel.
 
+## Native core beta
+
+Version 2.0.0-beta.1 adds independently implemented native accounts, reserved-byte accounting, four subscription formats, proxy connectors, local QR codes, and a five-language advanced editor. It is disabled by default: local integration tests pass, but Cloudflare preview error 1101 is unresolved. Do not replace a working deployment before validating the preview. See the [capability and validation matrix](docs/native-core.md) and [Persian guide](docs/native-core.fa.md).
+
 ## Highlights
 
 - **User management:** create limited or unlimited users, view user/node health, and write audit events.
