@@ -1,3 +1,4 @@
+import { subscriptionEndpoint, cleanSubscriptionName, type EdgeEndpoint } from './subscription-addresses';
 import { settingsFor, type NativeAccount } from './native-types';
 import { adaptiveRoutingHeader } from './routing';
 import { ledger } from './native-accounts';
@@ -11,13 +12,13 @@ export function selectedAddresses(account:NativeAccount,host:string,now=Date.now
   const offset=(epoch+account.uuid.split('').reduce((sum,char)=>sum+char.charCodeAt(0),0))%pool.length;
   return Array.from({length:Math.min(settings.addressCount,pool.length)},(_,index)=>pool[(offset+index)%pool.length]!);
 }
-export function nativeLinks(account:NativeAccount,host:string,now=Date.now(),countries=['smart']):string[]{
+export function nativeLinks(account:NativeAccount,host:string,now=Date.now(),countries=['smart'],endpoint?:EdgeEndpoint):string[]{
   const settings=settingsFor(account);const links:string[]=[];
-  for(const country of countries)for(const [index,address] of selectedAddresses(account,host,now).entries())for(const port of settings.ports){
+  for(const country of countries)for(const [index,address] of selectedAddresses(account,endpoint?.address||host,now).entries())for(const port of settings.ports){
     const url=new URL('vless://'+account.uuid+'@'+(address.includes(':')?'['+address.replace(/^\[|\]$/g,'')+']':address)+':'+port);
-    for(const [key,value] of Object.entries({encryption:'none',security:'tls',sni:host,host,type:'ws',path:country==='smart'?'/edge/native':'/edge/native/'+country,fp:settings.fingerprint,alpn:'http/1.1',allowInsecure:'0'}))url.searchParams.set(key,value);
+    for(const [key,value] of Object.entries({encryption:'none',security:'tls',sni:endpoint?.sni||host,host:endpoint?.host||host,type:'ws',path:country==='smart'?'/edge/native':'/edge/native/'+country,fp:settings.fingerprint,alpn:'http/1.1',allowInsecure:'0'}))url.searchParams.set(key,value);
     if(settings.fragment.enabled)url.searchParams.set('fragment',settings.fragment.length+','+settings.fragment.interval+',tlshello');
-    const names:Record<string,string>={smart:'🧠 Smart',us:'🇺🇸 US',nl:'🇳🇱 NL',sg:'🇸🇬 SG',ir:'🇮🇷 IR',de:'🇩🇪 DE',turkey:'🇹🇷 TR'};url.hash=encodeURIComponent('Aphrodite · '+(names[country]||country)+' · '+account.username+' · '+(index+1)+' / '+port);links.push(url.href);
+    const names:Record<string,string>={smart:'🧠 Smart',us:'🇺🇸 US',nl:'🇳🇱 NL',sg:'🇸🇬 SG',ir:'🇮🇷 IR',de:'🇩🇪 DE',turkey:'🇹🇷 TR'};url.hash=encodeURIComponent(cleanSubscriptionName('Aphrodite · '+(names[country]||country)+' · '+account.username+' · '+(index+1)+' / '+port));links.push(url.href);
   }return links;
 }
 function base64(value:string):string{let binary='';for(const byte of new TextEncoder().encode(value))binary+=String.fromCharCode(byte);return btoa(binary)}
@@ -32,16 +33,16 @@ export async function nativeSubscription(request:Request,env:Env,account:NativeA
   const status=await response.json() as {usedBytes:number;requests:number};
   if((settings.dataLimitBytes&&status.usedBytes>=settings.dataLimitBytes)||(settings.requestLimit&&status.requests>=settings.requestLimit))return text('Account quota exceeded',403,{'cache-control':'no-store'});
   const routes=tunnelMap(env),countries=env.NATIVE_RELAY_UUID?['smart','us','nl','sg','ir','de','turkey'].filter(country=>routes['/edge/'+country]?.length):['smart'];
-  const url=new URL(request.url),host=url.hostname,links=nativeLinks(account,host,Date.now(),countries),requested=url.searchParams.get('format');
+  const url=new URL(request.url),endpoint=subscriptionEndpoint(env,account.username),host=endpoint.host,links=nativeLinks(account,host,Date.now(),countries,endpoint),requested=url.searchParams.get('format');
   const format=requested||(/clash|mihomo/i.test(request.headers.get('user-agent')||'')?'clash':'base64');
   let body='',contentType='text/plain; charset=utf-8';
   if(format==='clash'){
-    const proxies=links.map((link,index)=>{const u=new URL(link);return {name:decodeURIComponent(u.hash.slice(1)),type:'vless',server:u.hostname.replace(/^\[|\]$/g,''),port:Number(u.port||443),uuid:account.uuid,tls:true,servername:host,'client-fingerprint':settings.fingerprint,network:'ws',udp:false,'ws-opts':{path:u.searchParams.get('path'),headers:{Host:host}}}});
+    const proxies=links.map((link,index)=>{const u=new URL(link);return {name:decodeURIComponent(u.hash.slice(1)),type:'vless',server:u.hostname.replace(/^\[|\]$/g,''),port:Number(u.port||443),uuid:account.uuid,tls:true,servername:u.searchParams.get('sni'),'client-fingerprint':settings.fingerprint,network:'ws',udp:false,'ws-opts':{path:u.searchParams.get('path'),headers:{Host:host}}}});
     const config={ 'mixed-port':7890,mode:'rule',proxies,'proxy-groups':[{name:'Aphrodite',type:'url-test',proxies:proxies.map(proxy=>proxy.name),url:'https://www.gstatic.com/generate_204',interval:300,tolerance:50}],rules:['IP-CIDR,127.0.0.0/8,DIRECT','IP-CIDR,10.0.0.0/8,DIRECT','IP-CIDR,172.16.0.0/12,DIRECT','IP-CIDR,192.168.0.0/16,DIRECT',...(request.cf?.country==='IR'?['DOMAIN-SUFFIX,ir,DIRECT']:[]),'MATCH,Aphrodite'] };
     // JSON is valid YAML 1.2 and avoids external geo databases.
     body=JSON.stringify(config,null,2);contentType='application/json; charset=utf-8';
   }else if(format==='xray'){
-    body=JSON.stringify(links.map((link,index)=>{const u=new URL(link);return {remarks:decodeURIComponent(u.hash.slice(1)),log:{loglevel:'warning'},inbounds:[{listen:'127.0.0.1',port:10808,protocol:'socks',settings:{udp:false}}],outbounds:[{tag:'proxy',protocol:'vless',settings:{vnext:[{address:u.hostname.replace(/^\[|\]$/g,''),port:Number(u.port||443),users:[{id:account.uuid,encryption:'none'}]}]},streamSettings:{network:'ws',security:'tls',tlsSettings:{serverName:host,fingerprint:settings.fingerprint,allowInsecure:false},wsSettings:{path:u.searchParams.get('path'),headers:{Host:host}}}},{tag:'direct',protocol:'freedom'}]}}),null,2);contentType='application/json; charset=utf-8';
+    body=JSON.stringify(links.map((link,index)=>{const u=new URL(link);return {remarks:decodeURIComponent(u.hash.slice(1)),log:{loglevel:'warning'},inbounds:[{listen:'127.0.0.1',port:10808,protocol:'socks',settings:{udp:false}}],outbounds:[{tag:'proxy',protocol:'vless',settings:{vnext:[{address:u.hostname.replace(/^\[|\]$/g,''),port:Number(u.port||443),users:[{id:account.uuid,encryption:'none'}]}]},streamSettings:{network:'ws',security:'tls',tlsSettings:{serverName:u.searchParams.get('sni'),fingerprint:settings.fingerprint,allowInsecure:false},wsSettings:{path:u.searchParams.get('path'),headers:{Host:host}}}},{tag:'direct',protocol:'freedom'}]}}),null,2);contentType='application/json; charset=utf-8';
   }else if(format==='raw')body=links.join('\n');else if(format==='base64')body=base64(links.join('\n'));else return text('Unsupported subscription format',400);
   const country=typeof request.cf?.country==='string'?request.cf.country:undefined;
   return text(body,200,{'content-type':contentType,'cache-control':'private, no-store','profile-update-interval':env.PROFILE_UPDATE_INTERVAL||'6','subscription-userinfo':`upload=0; download=${status.usedBytes}; total=${settings.dataLimitBytes}; expire=${account.expires_at||0}`,routing:adaptiveRoutingHeader(country),'x-aphrodite-engine':'native'});

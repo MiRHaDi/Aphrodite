@@ -41,7 +41,7 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === "/" || url.pathname === "/panel" || url.pathname === "/panel/") {
-      return new Response(PANEL_HTML, { headers: { ...securityHeaders, "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-frame-options": "DENY", "content-security-policy": "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'" } });
+      return new Response(PANEL_HTML.replace("new URL(result.subscriptionPath,location.origin)", "new URL(result.subscriptionPath,"+JSON.stringify(env.PUBLIC_EDGE_HOST ? "https://"+env.PUBLIC_EDGE_HOST : "https://smart.dr-mirhadi.ir")+")").replace("if(link.origin!==location.origin)throw new Error();", ""), { headers: { ...securityHeaders, "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-frame-options": "DENY", "content-security-policy": "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'" } });
     }
     if (url.pathname.startsWith("/api/")) return adminApi(request, env, url.pathname);
     if (/^\/edge\/native(?:\/(smart|us|nl|sg|ir|de|turkey))?$/.test(url.pathname)) return nativeTransport(request,env,ctx);

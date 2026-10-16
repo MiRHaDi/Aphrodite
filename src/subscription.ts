@@ -1,3 +1,4 @@
+import { rewriteSubscription, subscriptionEndpoint, rotationEpoch, cleanSubscriptionName } from './subscription-addresses';
 import { cacheSeconds, origins } from "./config";
 import { adaptiveRoutingHeader, routingMode } from "./routing";
 import { text } from "./responses";
@@ -41,7 +42,7 @@ export async function subscription(request: Request, env: Env, username: string,
   const mode = routingMode(country);
   const url = new URL(request.url);
   const profile = url.searchParams.get('profile') === 'compat' ? 'compat' : 'standard';
-  const key = new Request(`${url.origin}/feed/${encodeURIComponent(username)}?v=2&route=${mode}&profile=${profile}`);
+  const key = new Request(`${url.origin}/feed/${encodeURIComponent(username)}?v=3&route=${mode}&profile=${profile}&epoch=${rotationEpoch(env)}`);
   const hit = await edgeCache.match(key);
   if (hit) return hit;
 
@@ -59,12 +60,13 @@ export async function subscription(request: Request, env: Env, username: string,
     routing: adaptiveRoutingHeader(country),
   });
   for (const name of ["subscription-userinfo", "content-disposition"]) {
-    const value = upstream.headers.get(name); if (value) headers.set(name, value);
+    const value = upstream.headers.get(name); if (value) headers.set(name, name === 'content-disposition' ? cleanSubscriptionName(value) : value);
   }
   headers.set('x-aphrodite-profile', profile);
+  const rewritten = rewriteSubscription(await upstream.text(), env, username);
   const body = profile === 'compat'
-    ? compatibilitySubscription(await upstream.text(), url.hostname, env.EDGE_ADDRESSES)
-    : upstream.body;
+    ? compatibilitySubscription(rewritten, subscriptionEndpoint(env, username).host, env.EDGE_ADDRESSES)
+    : rewritten;
   const response = new Response(body, { status: 200, headers });
   ctx.waitUntil(edgeCache.put(key, response.clone()));
   return response;

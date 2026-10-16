@@ -24,6 +24,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "qrcode-generator": "^2.0.4"
+    "qrcode-generator": "^2.0.4",
+    "yaml": "^2.8.3"
   }
 }
