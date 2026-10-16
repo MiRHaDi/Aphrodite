@@ -1,4 +1,4 @@
-import { mergeSubscriptionBodies, gatewayVariants } from './subscription-merge';
+import { mergeSubscriptionBodies, gatewayVariants, subscriptionClient } from './subscription-merge';
 import { rewriteSubscription, subscriptionEndpoint, rotationEpoch, cleanSubscriptionName } from './subscription-addresses';
 import { cacheSeconds, origins } from "./config";
 import { adaptiveRoutingHeader, routingMode } from "./routing";
@@ -18,7 +18,7 @@ export function usernameFromPath(pathname: string): string | null {
 
 async function fetchAll(request: Request, env: Env, path: string): Promise<Response[]> {
   const responses=await Promise.all(origins(env).slice(0,4).map(async origin=>{
-    try {const response=await fetch(origin+path,{headers:{accept:request.headers.get('accept')||'text/plain,*/*','user-agent':request.headers.get('user-agent')||'Aphrodite/1.0'},cf:{cacheTtl:cacheSeconds(env),cacheEverything:true},signal:AbortSignal.timeout(8000)});return response.ok?response:null;}catch{return null;}
+    try {const response=await fetch(origin+path.replace(/\/$/,'')+'/'+subscriptionClient(request),{headers:{accept:'*/*','user-agent':request.headers.get('user-agent')||'Aphrodite/1.0'},cf:{cacheTtl:cacheSeconds(env),cacheEverything:true},signal:AbortSignal.timeout(8000)});return response.ok?response:null;}catch{return null;}
   }));
   return responses.filter((response):response is Response=>response!==null);
 }
@@ -33,7 +33,7 @@ export async function subscription(request: Request, env: Env, username: string,
   const mode = routingMode(country);
   const url = new URL(request.url);
   const profile = url.searchParams.get('profile') === 'compat' ? 'compat' : 'standard';
-  const key = new Request(`${url.origin}/feed/${encodeURIComponent(username)}?v=4&route=${mode}&profile=${profile}&epoch=${rotationEpoch(env)}`);
+  const key = new Request(`${url.origin}/feed/${encodeURIComponent(username)}?v=5&client=${subscriptionClient(request)}&route=${mode}&profile=${profile}&epoch=${rotationEpoch(env)}`);
   const hit = await edgeCache.match(key);
   if (hit) return hit;
 

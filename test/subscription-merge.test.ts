@@ -1,9 +1,10 @@
 import { describe,expect,it } from 'vitest';
-import { mergeSubscriptionBodies,gatewayVariants } from '../src/subscription-merge';
+import { mergeSubscriptionBodies,gatewayVariants,subscriptionClient } from '../src/subscription-merge';
 import { rewriteSubscription } from '../src/subscription-addresses';
 import type { Env } from '../src/types';
 const one='vless://user-id@smart.dr-mirhadi.ir:443?security=tls&type=ws&host=smart.dr-mirhadi.ir&sni=smart.dr-mirhadi.ir&path=%2Fedge%2Fir#Zeus%20Railway%20Edge%20Direct%20Iran';
 describe('unified subscriptions',()=>{
+ it('separates client formats for upstream paths and cache keys',()=>{expect(subscriptionClient(new Request('https://example.test/feed/user',{headers:{'user-agent':'Clash.Meta'}}))).toBe('clash-meta');expect(subscriptionClient(new Request('https://example.test/feed/user?format=xray'))).toBe('v2ray-json');expect(subscriptionClient(new Request('https://example.test/feed/user',{headers:{'user-agent':'Happ/1.0'}}))).toBe('v2ray');});
  it('merges raw/base64 sources, deduplicating only identical connection identities',()=>{
   const second=one.replace('user-id','other-id');const result=mergeSubscriptionBodies([btoa(one),one.replace(/#.*$/,'#DifferentName')+'\n'+second]);
   expect(atob(result).split('\n')).toHaveLength(2);expect(atob(result)).toContain('other-id');

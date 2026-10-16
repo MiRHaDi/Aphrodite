@@ -1,5 +1,16 @@
 import { parse, stringify } from 'yaml';
 import type { Env } from './types';
+export function subscriptionClient(request:Request):string {
+  const format=new URL(request.url).searchParams.get('format');
+  if(format==='clash'||format==='clash-meta')return 'clash-meta';
+  if(format==='xray'||format==='v2ray-json')return 'v2ray-json';
+  if(format==='sing-box')return 'sing-box';
+  if(format==='base64'||format==='raw'||format==='v2ray')return 'v2ray';
+  const agent=request.headers.get('user-agent')||'';
+  if(/^(clash|mihomo|flclash|stash)/i.test(agent))return 'clash-meta';
+  if(/^(sfa|sfi|sfm|sft|karing|hiddifynext)/i.test(agent))return 'sing-box';
+  return 'v2ray';
+}
 const schemes=/^(?:vless|vmess|trojan|ss):\/\//i;
 function decode(value:string):string {return new TextDecoder('utf-8',{fatal:true}).decode(Uint8Array.from(atob(value.replace(/\s/g,'')),c=>c.charCodeAt(0)));}
 function encode(value:string):string {let binary='';for(const b of new TextEncoder().encode(value))binary+=String.fromCharCode(b);return btoa(binary);}

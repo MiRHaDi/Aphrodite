@@ -25,6 +25,9 @@ export function cleanSubscriptionName(value:string):string {
 }
 function decode64(value:string):string{return new TextDecoder('utf-8',{fatal:true}).decode(Uint8Array.from(atob(value.replace(/\s/g,'')),char=>char.charCodeAt(0)));}
 function encode64(value:string):string {let binary='';for(const byte of new TextEncoder().encode(value))binary+=String.fromCharCode(byte);return btoa(binary);}
+function smartFirst(line:string):number {
+  try{const label=line.startsWith('vmess://')?JSON.parse(decode64(line.slice(8))).ps:decodeURIComponent(new URL(line).hash.slice(1));return cleanSubscriptionName(String(label)).includes('🧠')?0:1;}catch{return 1;}
+}
 export function rewriteSubscription(body:string,env:Env,username:string,now=Date.now()):string {
   if(body.length>2*1024*1024)throw new Error('Subscription too large');
   const endpoint=subscriptionEndpoint(env,username,now);
@@ -48,7 +51,10 @@ export function rewriteSubscription(body:string,env:Env,username:string,now=Date
       if(same(value))return ['sni','servername','serverName'].includes(key)?endpoint.sni:['host','Host'].includes(key)?endpoint.host:['address','server','add'].includes(key)?endpoint.address:value;
       return value;
     }
-    if(Array.isArray(value))return value.map(item=>structured(item,key,depth+1));
+    if(Array.isArray(value)){
+      const items=key==='proxies'&&value.every(item=>item&&typeof item==='object')?[...value].sort((a,b)=>Number(!cleanSubscriptionName(String(a.name)).includes('🧠'))-Number(!cleanSubscriptionName(String(b.name)).includes('🧠'))):value;
+      return items.map(item=>structured(item,key,depth+1));
+    }
     if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).map(([k,v])=>[k,structured(v,k,depth+1)]));
     return value;
   }
@@ -58,7 +64,7 @@ export function rewriteSubscription(body:string,env:Env,username:string,now=Date
     try {const candidate=decode64(body);if(/^(?:vless|trojan|vmess|ss):\/\//im.test(candidate)){decoded=candidate;encoded=true;}}catch{}
     if(!encoded){try {const doc=parse(body,{maxAliasCount:0});if(doc&&typeof doc==='object'){collect(doc);return stringify(structured(doc));}}catch{}return body;}
   }
-  const output=decoded.split(/\r?\n/).map((line,index)=>{
+  const output=decoded.split(/\r?\n/).sort((a,b)=>smartFirst(a)-smartFirst(b)).map((line,index)=>{
     if(line.startsWith('vmess://')) {try{const original=JSON.parse(decode64(line.slice(8)));const converted=structured(original) as Record<string,unknown>;converted.ps=cleanSubscriptionName(String(original.ps||''))+' · '+(index+1);return 'vmess://'+encode64(JSON.stringify(converted));}catch{return line}}
     if(!/^(?:vless|trojan|ss):\/\//i.test(line))return line;
     try {
