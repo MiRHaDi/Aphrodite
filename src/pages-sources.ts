@@ -53,7 +53,7 @@ async function probe(source: PagesSource) {
       latencyMs: Date.now() - started,
       contentType: response.headers.get("content-type"),
       title,
-      usable: source.enabled && response.ok,
+      usable: source.enabled && response.ok && sample.trim().length > 0,
     };
   } catch (error) {
     return { ...source, ok: false, status: 0, latencyMs: Date.now() - started, contentType: null, title: null, usable: false, error: error instanceof Error ? error.name : "probe_failed" };
@@ -83,6 +83,7 @@ export async function downloadPagesSource(env: Env, id: string): Promise<Respons
     if (declared > 2_000_000) return json({ ok: false, error: "Source is too large" }, 413);
     const body = await response.arrayBuffer();
     if (body.byteLength > 2_000_000) return json({ ok: false, error: "Source is too large" }, 413);
+    if (body.byteLength === 0) return json({ ok: false, error: "Deployment returned an empty source" }, 502);
     return new Response(body, { headers: {
       "content-type": response.headers.get("content-type") || "application/octet-stream",
       "content-disposition": `attachment; filename="${source.id}-index.html"`,
