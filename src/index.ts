@@ -23,7 +23,7 @@ async function adminApi(request: Request, env: Env, pathname: string): Promise<R
   if (pathname === '/api/native/test-proxy' && request.method === 'POST') return testNativeProxy(request,env);
   const nativeMatch=pathname.match(/^\/api\/native\/users(?:\/([A-Za-z0-9_.-]{3,32})(?:\/(status|reset|rotate|qr))?)?$/);
   if(nativeMatch)return nativeAdmin(request,env,nativeMatch[1],nativeMatch[2]);
-  if (pathname === "/api/overview" && request.method === "GET") return overview(env);
+  if (pathname === "/api/overview" && request.method === "GET") return overview(env,request);
   if (pathname === "/api/users" && request.method === "GET") return users(env);
   if (pathname === "/api/users" && request.method === "POST") return createUser(request, env);
   if (pathname === "/api/policies" && request.method === "GET") return listPolicies(env);
@@ -31,7 +31,7 @@ async function adminApi(request: Request, env: Env, pathname: string): Promise<R
   const policyMatch = pathname.match(/^\/api\/policies\/([A-Za-z0-9_.-]{3,96})$/);
   if (policyMatch && request.method === "PUT") return updatePolicy(request, env, policyMatch[1]!);
   if (pathname === "/api/capabilities" && request.method === "GET") return capabilities(env);
-  if (pathname === "/api/nodes" && request.method === "GET") return nodes(env);
+  if (pathname === "/api/nodes" && request.method === "GET") return nodes(env,request);
   if (pathname === "/api/backup" && request.method === "GET") return exportBackup(env);
   if (pathname === "/api/backup/import" && request.method === "POST") return importBackup(request, env, new URL(request.url).searchParams.get("apply") === "1");
   return error("Not found", 404);

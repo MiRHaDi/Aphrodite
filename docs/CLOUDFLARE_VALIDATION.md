@@ -48,3 +48,18 @@ After the live deployment is healthy, supply `TEST_DEPLOYMENT_URL`, `ADMIN_PATH`
 استقرار بعدی Pages صریحاً با کد **8000119** و پیام مسدودشدن پروژه رد شد. از آن زمان استقرار دیگری برای دورزدن محدودیت انجام نشد. Worker تازه، حتی با کد حداقلی و ابزار رسمی Wrangler، خطای ۵۰۰ دارد؛ علت دقیق آن جداگانه تأیید نشده است. برای انتشار نهایی، بازبینی محدودیت توسط کلودفلر و آزمون مجدد هر دو مقصد لازم است.
 
 تغییرات پروفایل‌ها و اصلاحات نصب‌کننده آزمون محلی را گذرانده‌اند، ولی این نتیجه جای آزمون زنده را نمی‌گیرد. تا گذشتن آزمون زنده، انتشار نهایی تأیید نمی‌شود.
+
+## Fresh standalone Pages network discovery (2026-10-17)
+
+Fresh native installations previously queried an absent external control plane for
+`/api/nodes`, returning 502 despite having a native runtime. Network discovery now
+includes the local runtime automatically, and includes country relays only when
+routes and relay credentials are configured. The five-language sidebar reflects
+these nodes rather than advertising hardcoded countries and protocols. Ready and
+configured states describe configuration; they do not claim a measured connection.
+
+83 local tests and TypeScript validation passed. An update of the existing
+user-installed `aphrodite-mvbkr97p` project was rejected by Cloudflare with code
+8000119 (project blocked). The corrected build has NOT reached that deployment.
+No replacement project was created, and its database, bindings and administrator
+credentials were not changed. Provider review is required before another upload.
