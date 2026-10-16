@@ -36,7 +36,7 @@ export default {
     const username = usernameFromPath(url.pathname);
     if (username) return subscription(request, env, username, ctx);
     if (url.pathname in tunnelMap(env)) return tunnel(request, env, url.pathname);
-    if (url.pathname === "/healthz") return json({ ok: true, service: "aphrodite-edge", version: "1.5.2", routes: Object.keys(tunnelMap(env)).length });
+    if (url.pathname === "/healthz") return json({ ok: true, service: "aphrodite-edge", version: "1.5.3", routes: Object.keys(tunnelMap(env)).length });
     return error("Not found", 404);
   },
 };

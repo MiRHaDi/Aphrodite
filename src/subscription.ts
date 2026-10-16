@@ -1,3 +1,4 @@
+import { mergeSubscriptionBodies, gatewayVariants } from './subscription-merge';
 import { rewriteSubscription, subscriptionEndpoint, rotationEpoch, cleanSubscriptionName } from './subscription-addresses';
 import { cacheSeconds, origins } from "./config";
 import { adaptiveRoutingHeader, routingMode } from "./routing";
@@ -15,17 +16,11 @@ export function usernameFromPath(pathname: string): string | null {
   } catch { return null; }
 }
 
-async function fetchFirst(request: Request, env: Env, path: string): Promise<Response | null> {
-  for (const origin of origins(env)) {
-    try {
-      const response = await fetch(origin + path, {
-        headers: { accept: request.headers.get("accept") || "text/plain,*/*", "user-agent": request.headers.get("user-agent") || "Aphrodite/1.0" },
-        cf: { cacheTtl: cacheSeconds(env), cacheEverything: true },
-      });
-      if (response.ok) return response;
-    } catch { /* try the next configured origin */ }
-  }
-  return null;
+async function fetchAll(request: Request, env: Env, path: string): Promise<Response[]> {
+  const responses=await Promise.all(origins(env).slice(0,4).map(async origin=>{
+    try {const response=await fetch(origin+path,{headers:{accept:request.headers.get('accept')||'text/plain,*/*','user-agent':request.headers.get('user-agent')||'Aphrodite/1.0'},cf:{cacheTtl:cacheSeconds(env),cacheEverything:true},signal:AbortSignal.timeout(8000)});return response.ok?response:null;}catch{return null;}
+  }));
+  return responses.filter((response):response is Response=>response!==null);
 }
 
 export async function subscription(request: Request, env: Env, username: string, ctx: ExecutionContext): Promise<Response> {
@@ -38,7 +33,7 @@ export async function subscription(request: Request, env: Env, username: string,
   const mode = routingMode(country);
   const url = new URL(request.url);
   const profile = url.searchParams.get('profile') === 'compat' ? 'compat' : 'standard';
-  const key = new Request(`${url.origin}/feed/${encodeURIComponent(username)}?v=3&route=${mode}&profile=${profile}&epoch=${rotationEpoch(env)}`);
+  const key = new Request(`${url.origin}/feed/${encodeURIComponent(username)}?v=4&route=${mode}&profile=${profile}&epoch=${rotationEpoch(env)}`);
   const hit = await edgeCache.match(key);
   if (hit) return hit;
 
@@ -46,7 +41,8 @@ export async function subscription(request: Request, env: Env, username: string,
     .bind(username).first<SubscriptionRoute>();
   if (!route?.enabled || !route.upstream_path.startsWith("/sub/")) return text("Not found", 404, { "cache-control": "no-store" });
 
-  const upstream = await fetchFirst(request, env, route.upstream_path);
+  const upstreams = await fetchAll(request, env, route.upstream_path);
+  const upstream=upstreams[0];
   if (!upstream) return text("Upstream unavailable", 503, { "cache-control": "no-store", "retry-after": "15" });
   const ttl = cacheSeconds(env);
   const headers = new Headers({
@@ -56,14 +52,15 @@ export async function subscription(request: Request, env: Env, username: string,
     routing: adaptiveRoutingHeader(country),
   });
   for (const name of ["subscription-userinfo", "content-disposition"]) {
-    const value = upstream.headers.get(name); if (value) headers.set(name, name === 'content-disposition' ? cleanSubscriptionName(value) : value);
+    const value = upstream.headers.get(name); if (value) headers.set(name, name === 'content-disposition' ? 'attachment; filename="subscription.txt"' : value);
   }
   headers.set('x-aphrodite-profile', profile);
-  const rewritten = rewriteSubscription(await upstream.text(), env, username);
+  const merged=mergeSubscriptionBodies(await Promise.all(upstreams.map(response=>response.text())));
+  const rewritten = rewriteSubscription(gatewayVariants(merged,env), env, username);
   const body = profile === 'compat'
     ? compatibilitySubscription(rewritten, subscriptionEndpoint(env, username).host, env.EDGE_ADDRESSES)
     : rewritten;
-  const response = new Response(body, { status: 200, headers });
+  const response = new Response(rewriteSubscription(body,env,username), { status: 200, headers });
   ctx.waitUntil(edgeCache.put(key, response.clone()));
   return response;
 }

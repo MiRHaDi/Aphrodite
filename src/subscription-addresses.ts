@@ -18,7 +18,11 @@ export function subscriptionEndpoint(env:Env,username:string,now=Date.now()):Edg
   return pool[(Math.floor(now/(minutes*60000))+hash)%pool.length]!;
 }
 export function rotationEpoch(env:Env,now=Date.now()):number {return Math.floor(now/(Math.min(1440,Math.max(1,Number(env.EDGE_ROTATION_MINUTES)||60))*60000));}
-export function cleanSubscriptionName(value:string):string{return value.replace(/vpn/ig,'').replace(/ {2,}/g,' ').trim();}
+export function cleanSubscriptionName(value:string):string {
+  if(/smart|auto|هوشمند|خودکار|🧠/i.test(value))return '🧠 هوشمند';
+  const countries:Array<[RegExp,string]>=[[/🇮🇷|iran|ایران|\bIR\b/i,'🇮🇷 ایران'],[/🇺🇸|united states|america|آمریکا|\bUS\b/i,'🇺🇸 آمریکا'],[/🇳🇱|netherlands|هلند|\bNL\b/i,'🇳🇱 هلند'],[/🇸🇬|singapore|سنگاپور|\bSG\b/i,'🇸🇬 سنگاپور'],[/🇩🇪|germany|آلمان|\bDE\b/i,'🇩🇪 آلمان'],[/🇹🇷|turkey|ترکیه|\bTR\b/i,'🇹🇷 ترکیه']];
+  return countries.find(([pattern])=>pattern.test(value))?.[1]||'اتصال';
+}
 function decode64(value:string):string{return new TextDecoder('utf-8',{fatal:true}).decode(Uint8Array.from(atob(value.replace(/\s/g,'')),char=>char.charCodeAt(0)));}
 function encode64(value:string):string {let binary='';for(const byte of new TextEncoder().encode(value))binary+=String.fromCharCode(byte);return btoa(binary);}
 export function rewriteSubscription(body:string,env:Env,username:string,now=Date.now()):string {
@@ -31,14 +35,14 @@ export function rewriteSubscription(body:string,env:Env,username:string,now=Date
     if(depth>48)throw new Error('Configuration too deep');
     if(Array.isArray(value)){for(const item of value)collect(item,depth+1);return;}
     if(value&&typeof value==='object')for(const [key,item] of Object.entries(value)){
-      if(['name','remarks','ps'].includes(key)&&typeof item==='string')names.set(item,cleanSubscriptionName(item));
+      if(['name','remarks','ps'].includes(key)&&typeof item==='string'){if(!names.has(item))names.set(item,cleanSubscriptionName(item)+' · '+(names.size+1));}
       else collect(item,depth+1);
     }
   }
   function structured(value:unknown,key='',depth=0):unknown {
     if(depth>48)throw new Error('Configuration too deep');
     if(typeof value==='string') {
-      if(['name','remarks','ps'].includes(key))return cleanSubscriptionName(value);
+      if(['name','remarks','ps'].includes(key))return names.get(value)||cleanSubscriptionName(value);
       if(key==='proxies')return names.get(value)||value;
       if(key==='rules'){const parts=value.split(',');parts[parts.length-1]=names.get(parts[parts.length-1]!)||parts[parts.length-1]!;return parts.join(',');}
       if(same(value))return ['sni','servername','serverName'].includes(key)?endpoint.sni:['host','Host'].includes(key)?endpoint.host:['address','server','add'].includes(key)?endpoint.address:value;
@@ -54,12 +58,12 @@ export function rewriteSubscription(body:string,env:Env,username:string,now=Date
     try {const candidate=decode64(body);if(/^(?:vless|trojan|vmess|ss):\/\//im.test(candidate)){decoded=candidate;encoded=true;}}catch{}
     if(!encoded){try {const doc=parse(body,{maxAliasCount:0});if(doc&&typeof doc==='object'){collect(doc);return stringify(structured(doc));}}catch{}return body;}
   }
-  const output=decoded.split(/\r?\n/).map(line=>{
-    if(line.startsWith('vmess://')) {try{return 'vmess://'+encode64(JSON.stringify(structured(JSON.parse(decode64(line.slice(8))))));}catch{return line}}
+  const output=decoded.split(/\r?\n/).map((line,index)=>{
+    if(line.startsWith('vmess://')) {try{const original=JSON.parse(decode64(line.slice(8)));const converted=structured(original) as Record<string,unknown>;converted.ps=cleanSubscriptionName(String(original.ps||''))+' · '+(index+1);return 'vmess://'+encode64(JSON.stringify(converted));}catch{return line}}
     if(!/^(?:vless|trojan|ss):\/\//i.test(line))return line;
     try {
       const u=new URL(line);let label=u.hash.slice(1);try{label=decodeURIComponent(label)}catch{}
-      u.hash=encodeURIComponent(cleanSubscriptionName(label));
+      u.hash=encodeURIComponent(cleanSubscriptionName(label)+' · '+(index+1));
       if(u.searchParams.get('type')==='ws'&&u.searchParams.get('security')==='tls'&&[u.hostname,u.searchParams.get('sni'),u.searchParams.get('host')].some(same)) {
         u.hostname=endpoint.address.includes(':')?'['+endpoint.address.replace(/^\[|\]$/g,'')+']':endpoint.address;
         u.searchParams.set('sni',endpoint.sni);u.searchParams.set('host',endpoint.host);u.searchParams.set('allowInsecure','0');u.searchParams.delete('insecure');
