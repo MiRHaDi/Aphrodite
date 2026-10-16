@@ -1,73 +1,84 @@
-# Aphrodite
+<p align="center"><img src="docs/assets/github-banner.svg" alt="Aphrodite — your network, beautifully managed" width="100%"></p>
 
-Private management is now the deployment default. Configure ADMIN_PATH once with `node scripts/setup-private.mjs` (or `--path`), then use that private path. Public root/panel/API/health probes return empty responses; new accounts receive opaque subscription links. See [private entry points](docs/PRIVATE_ENTRYPOINTS.md).
+<p align="center">
+<a href="https://github.com/MiRHaDi/Aphrodite/releases"><img alt="Releases" src="https://img.shields.io/github/v/release/MiRHaDi/Aphrodite?include_prereleases&amp;color=8b5cf6&amp;label=release"></a>
+<a href="https://github.com/MiRHaDi/Aphrodite/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/MiRHaDi/Aphrodite/actions/workflows/ci.yml/badge.svg"></a>
+<a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-06b6d4"></a>
+<img alt="Five interface languages" src="https://img.shields.io/badge/interface-5_languages-8b5cf6">
+</p>
 
-**A resilient, bilingual edge gateway and administration layer.**
+<p align="center"><b>A five-language workspace for private network administration and adaptive subscriptions.</b><br>
+<a href="README.fa.md">فارسی</a> · <a href="#start-here">Get started</a> · <a href="https://github.com/MiRHaDi/Aphrodite/releases">Downloads</a> · <a href="#documentation">Documentation</a> · <a href="SECURITY.md">Security</a></p>
 
-[![CI](https://github.com/MiRHaDi/Aphrodite/actions/workflows/ci.yml/badge.svg)](https://github.com/MiRHaDi/Aphrodite/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-7c3aed.svg)](LICENSE)
-[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-f38020)](https://developers.cloudflare.com/workers/)
+## A clear view of your network
 
-[راهنمای فارسی](README.fa.md) · [Deployment](docs/DEPLOYMENT.md) · [Pages](docs/PAGES.md) · [Architecture](docs/ARCHITECTURE.md) · [Features](docs/FEATURES.md) · [Security](SECURITY.md)
+Aphrodite brings account management, subscription delivery and connection settings into one workspace. Organize users, configure authorized routes and distribute client profiles from a responsive interface available in English, Persian, Chinese, Russian and Arabic.
 
-Aphrodite turns a Cloudflare Worker into a small, auditable edge layer in front of an authorized control plane. It keeps public subscription URLs stable, adds adaptive client routing, fails over between authorized origins, exposes configured WebSocket transports, and provides a polished Persian/English-ready administration panel.
+| Manage | Connect | Operate |
+|---|---|---|
+| User limits and expiry | Adaptive client routing | Cloudflare Workers and Pages |
+| Connection settings | Multiple subscription formats | D1-backed configuration |
+| Audit and backup workflows | Configured origin failover | Portable installer in the 2.0 beta |
+| Five-language interface | Configured country exits | Documented validation boundaries |
 
-## Native core beta
+## Start here
 
-Version 2.0.0-beta.1 adds independently implemented native accounts, reserved-byte accounting, four subscription formats, proxy connectors, local QR codes, and a five-language advanced editor. It is disabled by default: local integration tests pass, but Cloudflare preview error 1101 is unresolved. Do not replace a working deployment before validating the preview. See the [capability and validation matrix](docs/native-core.md) and [Persian guide](docs/native-core.fa.md).
+Choose a release before deploying. The default branch and the portable beta are separate release channels.
 
-## Highlights
+| Channel | Best for | Download and guide |
+|---|---|---|
+| **1.5 workspace** | Existing gateway workflows and the five-language interface | [Stable releases](https://github.com/MiRHaDi/Aphrodite/releases/latest) · [Deployment](docs/DEPLOYMENT.md) |
+| **2.0 portable beta** | Native accounts and token-driven installation | [Beta releases](https://github.com/MiRHaDi/Aphrodite/releases) · [Installer guide](https://github.com/MiRHaDi/Aphrodite/blob/codex/portable-installer/docs/INSTALLER.md) |
 
-- **User management:** create limited or unlimited users, view user/node health, and write audit events.
-- **Stable subscriptions:** public `/feed/:username` URLs stay independent of the backend hostname.
-- **Adaptive routing:** Iranian domains use the direct route when the client is inside Iran and an Iran exit when the client is abroad; other traffic uses the proxy route.
-- **No GeoIP/GeoSite downloads:** generated adaptive rules use explicit domain lists and outbound tags, avoiding startup failures caused by missing asset sections.
-- **Multiple transports:** compatible with VLESS, VMess, Trojan, and Shadowsocks inbounds, including WS, gRPC, HTTPUpgrade, and XHTTP where the configured backend supports them.
-- **Resilience:** edge cache, sequential origin failover, multiple tunnel targets, and an optional stateless relay.
-- **Safer defaults:** bearer-protected admin API, constant-time token comparison, strict headers, parameterized D1 queries, validation, and no credentials in source.
-- **Low database load:** one indexed route lookup per cache miss; subscription bodies live in Cache API rather than D1.
-- **Bounded edge accounting:** policy reads are cached and activity is aggregated into five-minute windows; traffic bytes remain accurately enforced by the authorized control plane.
-- **Worker and Pages:** the same typed runtime can run as a Worker or through Cloudflare Pages Functions.
-- **Fast tunnel selection:** bounded concurrent connection attempts, strict timeouts, and temporary cooldown for unhealthy targets reduce failover delay without unbounded subrequests.
-- **Portable administration:** secret-free JSON backups, validated merge restore, case-insensitive feed links, and bounded D1 batch operations.
+For the portable beta, download and extract its installer ZIP, then run:
 
-## Architecture
-
-```text
-Aphrodite client
-       │
-       ▼
-Cloudflare Worker ── D1 route registry + audit log
-  │          │
-  │          └── WebSocket tunnel pool
-  ▼
-Authorized control plane ◄── optional stateless backup relay
+```powershell
+# Windows / PowerShell
+.\install.ps1 --provider workers
 ```
-
-Cloudflare Workers handle HTTP and WebSocket traffic; arbitrary TCP/UDP protocols need a compatible server or provider transport. Aphrodite therefore manages and distributes such profiles but does not pretend that a Worker can terminate WireGuard or OpenVPN.
-
-## Quick start
 
 ```bash
-git clone https://github.com/MiRHaDi/Aphrodite.git
-cd Aphrodite
-npm ci
-cp wrangler.toml.example wrangler.toml
-npx wrangler d1 create aphrodite-db
-# Copy the returned database_id into wrangler.toml
-npm run db:migrate:remote
-npx wrangler secret put ADMIN_TOKEN
-npx wrangler secret put CONTROL_PLANE_TOKEN
-npm run deploy
+# Linux / macOS
+bash install.sh --provider pages
 ```
 
-If the control plane does not provide a long-lived API token, set `CONTROL_PLANE_USERNAME` and `CONTROL_PLANE_PASSWORD` as Worker secrets instead. Configure only origins and tunnel targets you control.
+The installer prompts for credentials and builds the deployment. Other beta destinations are Railway, Render, Docker and VPS over SSH. Render requires a paid persistent-disk plan; local Docker requires a running daemon. Similar hosts can use the Docker bundle. [Read prerequisites and limits first](https://github.com/MiRHaDi/Aphrodite/blob/codex/portable-installer/docs/INSTALLER.md).
 
-The panel is available at `/panel`; subscriptions are served from `/feed/<username>`; health is at `/healthz`.
+## How it fits together
 
-## Responsible operation
+```text
+Client applications
+        |
+        v
+Aphrodite subscription gateway + management workspace
+        |
+        +-- Account and route storage
+        +-- Native transport in the portable beta
+        +-- Authorized upstreams and configured country exits
+```
 
-Aphrodite is designed for authorized network administration and reliable access to your own services. Follow provider terms and local law, publish an abuse contact, monitor resource usage, and keep a removable origin outside the edge layer. The project intentionally contains no source camouflage, provider-detection bypass, credential harvesting, or public-proxy scraping.
+Country selection requires a working exit in that country. Adaptive routing uses configured client rules; it does not guarantee access to every website. Hosted HTTP/WebSocket runtimes do not automatically become WireGuard or OpenVPN servers.
+
+## Private by configuration
+
+The portable beta uses a configured private management path and bearer authentication. New users receive random subscription links; retained legacy links follow the existing installation policy. Keep tokens, user credentials and real deployment configuration out of Git. Consult the [private entry-point guide](https://github.com/MiRHaDi/Aphrodite/blob/codex/portable-installer/docs/PRIVATE_ENTRYPOINTS.md) for beta behavior.
+
+## Documentation
+
+| Task | Guide |
+|---|---|
+| Deploy the workspace | [English](docs/DEPLOYMENT.md) · [فارسی](docs/DEPLOYMENT.fa.md) |
+| Install the portable beta | [English](https://github.com/MiRHaDi/Aphrodite/blob/codex/portable-installer/docs/INSTALLER.md) · [فارسی](https://github.com/MiRHaDi/Aphrodite/blob/codex/portable-installer/docs/INSTALLER.fa.md) |
+| Understand the design | [Architecture](docs/ARCHITECTURE.md) · [Features](docs/FEATURES.md) |
+| Deploy on Pages | [Pages guide](docs/PAGES.md) |
+| Report a vulnerability | [Security policy](SECURITY.md) |
+| Contribute | [Contribution guide](CONTRIBUTING.md) |
+
+## Validation and release status
+
+The 2.0 installer snapshot passed 50 tests, TypeScript checks, and Node/Miniflare integration tests covering private management, account creation, subscription formats, authenticated WebSocket and quota reservation/refund. Live provider adapters, Docker container execution and performance across ISPs remain unverified for that snapshot. Each portable installation has independent accounting.
+
+Release notes describe the exact published revision. A beta label means additional deployment validation is needed; it is not a claim of production readiness.
 
 ## Development
 
@@ -75,13 +86,10 @@ Aphrodite is designed for authorized network administration and reliable access 
 npm ci
 npm run check
 npm test
-npm run dev
 ```
 
-Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+The portable beta requires Node.js 24. Follow the selected release's prerequisites for other versions.
 
-## Portable deployment
+## License
 
-[Persian installer guide](docs/INSTALLER.fa.md) | [English installer guide](docs/INSTALLER.md) | [Archive review](docs/DEPLOYMENT_PACKAGE_REVIEW.fa.md)
-
-Workers, Pages, Railway, Render, Docker and SSH installers: `node installer/cli.mjs --help`. Bootstrap with `install.ps1` or `bash install.sh`. Live provider deployments remain unverified; see prerequisites and limits in the guide.
+[MIT](LICENSE). Required dependency notices are preserved in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
