@@ -8,6 +8,7 @@ import { tunnelMap } from "./config";
 import type { Env } from "./types";
 import { capabilities, listPolicies, updatePolicy } from "./policies";
 import { bulkPolicies, exportBackup, importBackup } from "./admin-data";
+import { pagesStatus } from "./pages-sources";
 
 async function adminApi(request: Request, env: Env, pathname: string): Promise<Response> {
   if (!await isAdmin(request, env)) return error("Unauthorized", 401);
@@ -19,6 +20,7 @@ async function adminApi(request: Request, env: Env, pathname: string): Promise<R
   const policyMatch = pathname.match(/^\/api\/policies\/([A-Za-z0-9_.-]{3,96})$/);
   if (policyMatch && request.method === "PUT") return updatePolicy(request, env, policyMatch[1]!);
   if (pathname === "/api/capabilities" && request.method === "GET") return capabilities(env);
+  if (pathname === "/api/pages-sources" && request.method === "GET") return pagesStatus(env);
   if (pathname === "/api/backup" && request.method === "GET") return exportBackup(env);
   if (pathname === "/api/backup/import" && request.method === "POST") return importBackup(request, env, new URL(request.url).searchParams.get("apply") === "1");
   return error("Not found", 404);
@@ -35,7 +37,7 @@ export default {
     const username = usernameFromPath(url.pathname);
     if (username) return subscription(request, env, username, ctx);
     if (url.pathname in tunnelMap(env)) return tunnel(request, env, url.pathname);
-    if (url.pathname === "/healthz") return json({ ok: true, service: "aphrodite-edge", version: "1.3.0", routes: Object.keys(tunnelMap(env)).length });
+    if (url.pathname === "/healthz") return json({ ok: true, service: "aphrodite-edge", version: "1.4.0", routes: Object.keys(tunnelMap(env)).length });
     return error("Not found", 404);
   },
 };
