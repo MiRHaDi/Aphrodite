@@ -1,0 +1,25 @@
+name = "aphrodite-pages"
+pages_build_output_dir = "public"
+compatibility_date = "2026-10-03"
+compatibility_flags = ["global_fetch_strictly_public"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "aphrodite-db"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+[vars]
+PUBLIC_EDGE_HOST = "smart.dr-mirhadi.ir"
+EDGE_ROTATION_MINUTES = "60"
+# EDGE_ENDPOINTS_JSON = '[]'
+NATIVE_ENABLED = "false"
+CONTROL_PLANE_ORIGIN = "https://panel.example.com"
+BACKUP_ORIGINS = "https://backup-panel.example.com"
+PUBLIC_CACHE_SECONDS = "120"
+PROFILE_UPDATE_INTERVAL = "6"
+TUNNEL_RACE_WIDTH = "2"
+TUNNEL_CONNECT_TIMEOUT_MS = "4500"
+TUNNEL_COOLDOWN_SECONDS = "30"
+TUNNEL_ROUTES_JSON = '{}'
+
+# Add ADMIN_TOKEN and control-plane credentials as encrypted Pages secrets.

@@ -1,0 +1,35 @@
+import { describe,expect,it } from 'vitest';
+import { mergeSubscriptionBodies,gatewayVariants,subscriptionClient } from '../src/subscription-merge';
+import { rewriteSubscription } from '../src/subscription-addresses';
+import type { Env } from '../src/types';
+const one='vless://user-id@smart.dr-mirhadi.ir:443?security=tls&type=ws&host=smart.dr-mirhadi.ir&sni=smart.dr-mirhadi.ir&path=%2Fedge%2Fir#Zeus%20Railway%20Edge%20Direct%20Iran';
+describe('unified subscriptions',()=>{
+ it('adds sing-box variants and renames tags together with selector and route references',()=>{
+  const env={SUBSCRIPTION_GATEWAYS_JSON:JSON.stringify([{host:'route.example',paths:['/edge/us']}])} as Env;
+  const config={outbounds:[{type:'selector',tag:'Zeus Smart',outbounds:['Railway US']},{type:'vless',tag:'Railway US',server:'smart.dr-mirhadi.ir',uuid:'test-id',tls:{enabled:true,server_name:'smart.dr-mirhadi.ir'},transport:{type:'ws',path:'/edge/us',headers:{Host:'smart.dr-mirhadi.ir'}}},{type:'direct',tag:'direct'}],route:{final:'Zeus Smart',rules:[{outbound:'direct'}]}};
+  const result=JSON.parse(rewriteSubscription(gatewayVariants(JSON.stringify(config),env),env,'user'));
+  const names=result.outbounds.map((item:{tag:string})=>item.tag);
+  expect(result.outbounds).toHaveLength(4);expect(names.every((name:string)=>!/zeus|railway|edge|direct/i.test(name))).toBe(true);
+  expect(names).toContain(result.route.final);expect(names).toContain(result.route.rules[0].outbound);
+  expect(result.outbounds[0].outbounds.every((name:string)=>names.includes(name))).toBe(true);
+  expect(result.outbounds[3].uuid).toBe('test-id');expect(result.outbounds[3].server).toBe('route.example');
+ });
+ it('separates client formats for upstream paths and cache keys',()=>{expect(subscriptionClient(new Request('https://example.test/feed/user',{headers:{'user-agent':'Clash.Meta'}}))).toBe('clash-meta');expect(subscriptionClient(new Request('https://example.test/feed/user?format=xray'))).toBe('v2ray-json');expect(subscriptionClient(new Request('https://example.test/feed/user',{headers:{'user-agent':'Happ/1.0'}}))).toBe('v2ray');});
+ it('merges raw/base64 sources, deduplicating only identical connection identities',()=>{
+  const second=one.replace('user-id','other-id');const result=mergeSubscriptionBodies([btoa(one),one.replace(/#.*$/,'#DifferentName')+'\n'+second]);
+  expect(atob(result).split('\n')).toHaveLength(2);expect(atob(result)).toContain('other-id');
+ });
+ it('adds compatible gateway routes with original per-user credentials and independent backups',()=>{
+  const env={SUBSCRIPTION_GATEWAYS_JSON:JSON.stringify([{host:'route1.example',paths:['/edge/ir']},{host:'route2.example',paths:['/edge/us']}])} as Env;
+  const backup=one.replace('%2Fedge%2Fir','%2Factual-transport');
+  const result=gatewayVariants(one+'\n'+backup,env).split('\n');expect(result).toHaveLength(3);
+  const added=new URL(result[2]!);expect(added.hostname).toBe('route1.example');expect(added.username).toBe('user-id');expect(added.searchParams.get('path')).toBe('/edge/ir');
+ });
+ it('removes infrastructure words from all displayed URI names including variants',()=>{
+  const result=rewriteSubscription(one,{} as Env,'user');const name=decodeURIComponent(new URL(result).hash);expect(name).toBe('#🇮🇷 ایران · 1');expect(name).not.toMatch(/zeus|railway|edge|direct|vpn/i);
+ });
+ it('merges Clash proxies and keeps selection groups connected',()=>{
+  const a={proxies:[{name:'one',type:'vless',server:'a',uuid:'id'}],'proxy-groups':[{name:'choose',type:'select',proxies:['one']}],rules:['MATCH,choose']};
+  const b={proxies:[{name:'two',type:'vless',server:'b',uuid:'id'}]};const result=JSON.parse(mergeSubscriptionBodies([JSON.stringify(a),JSON.stringify(b)]));expect(result.proxies).toHaveLength(2);expect(result['proxy-groups'][0].proxies).toEqual(['one','two']);
+ });
+});

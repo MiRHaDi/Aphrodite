@@ -1,0 +1,20 @@
+map $http_upgrade $connection_upgrade { default upgrade; '' close; }
+upstream primary { server ${PRIMARY_HOST}:${PRIMARY_PORT}; keepalive 64; }
+upstream backup { server ${BACKUP_HOST}:${BACKUP_PORT} backup; keepalive 32; }
+server {
+  listen ${PORT};
+  server_tokens off;
+  location = /healthz { access_log off; return 200 'ok\n'; add_header Content-Type text/plain; }
+  location / {
+    proxy_pass ${UPSTREAM_SCHEME}://primary;
+    proxy_http_version 1.1;
+    proxy_set_header Host ${UPSTREAM_HOST_HEADER};
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_connect_timeout 3s;
+    proxy_read_timeout 3600s;
+    proxy_send_timeout 3600s;
+    proxy_buffering off;
+  }
+}

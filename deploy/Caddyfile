@@ -1,0 +1,3 @@
+{$DOMAIN} {
+    reverse_proxy panel:8080
+}

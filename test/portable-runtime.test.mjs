@@ -1,0 +1,40 @@
+import {afterEach,describe,expect,it} from 'vitest';
+import {mkdtemp,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join,resolve} from 'node:path';
+import {once} from 'node:events';
+import WS from 'ws';
+import {start} from '../runtime/server.mjs';
+import {compileSource} from '../installer/build.mjs';
+let service,directory;
+afterEach(async()=>{if(service)await service.close();if(directory)await rm(directory,{recursive:true,force:true});service=null;});
+describe('portable runtime',()=>{
+ it('uses private management, opaque subscriptions and persistent atomic accounting',async()=>{
+  directory=await mkdtemp(join(tmpdir(),'aphrodite-runtime-'));
+  const env={ADMIN_TOKEN:'local-test-token-at-least-32-characters',ADMIN_PATH:'local-private-management',DATABASE_PATH:join(directory,'data.sqlite'),NATIVE_ENABLED:'true',CONTROL_PLANE_ORIGIN:'',PUBLIC_EDGE_HOST:'localhost'};
+  const options={port:0,env,migrations:resolve('migrations')};service=await start(options);
+  let origin='http://127.0.0.1:'+service.address.port;
+  const api=async(path,body)=>{const response=await fetch(origin+'/'+env.ADMIN_PATH+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+env.ADMIN_TOKEN,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});expect(response.ok).toBe(true);return response.json();};
+  expect(await (await fetch(origin+'/')).text()).toBe('');
+  const created=await api('/api/users',{username:'portable-test',days:1,dataGb:1,settings:{dataLimitBytes:1024,maxConnections:1}});
+  expect(created.subscriptionPath).toMatch(/^\/[a-f0-9]{64}$/);
+  expect((await fetch(origin+'/feed/portable-test')).status).toBe(404);
+  expect((await fetch(origin+created.subscriptionPath)).status).toBe(200);
+  const account=await api('/api/native/users/portable-test');
+  const socket=new WS(origin.replace('http','ws')+'/edge/native');await once(socket,'open');
+  const reply=once(socket,'message');socket.send(Buffer.from([0,...Buffer.from(account.uuid.replaceAll('-',''),'hex'),0,2,0,53,1,1,1,1,1]));
+  expect(Buffer.from((await reply)[0])).toEqual(Buffer.from([0,0]));
+  expect((await api('/api/native/users/portable-test/status')).usedBytes).toBe(1024);
+  const closed=once(socket,'close');socket.close();await closed;await new Promise(r=>setTimeout(r,30));
+  expect((await api('/api/native/users/portable-test/status')).usedBytes).toBe(0);
+  await service.close();service=null;service=await start(options);origin='http://127.0.0.1:'+service.address.port;
+  expect((await api('/api/native/users/portable-test')).uuid).toBe(account.uuid);
+ });
+ it('minifies source without changing exported behavior',async()=>{
+  const source='export function answer(n){return n+42}';const a=await compileSource(source),b=await compileSource(source);
+  expect(a.code).toBe(b.code);expect(a.id).not.toBe(b.id);
+  const first=await import('data:text/javascript;base64,'+Buffer.from(a.code).toString('base64'));
+  const second=await import('data:text/javascript;base64,'+Buffer.from(b.code).toString('base64'));
+  expect(first.answer(3)).toBe(45);expect(second.answer(3)).toBe(45);
+ });
+});

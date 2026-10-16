@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" role="img" aria-labelledby="title desc">
+<title id="title">Aphrodite — your network, beautifully managed</title><desc id="desc">A dark violet banner with connected nodes and the Aphrodite name.</desc>
+<defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#111128"/><stop offset="1" stop-color="#28194a"/></linearGradient><linearGradient id="accent"><stop stop-color="#c4b5fd"/><stop offset="1" stop-color="#67e8f9"/></linearGradient></defs>
+<rect width="1280" height="360" rx="24" fill="url(#bg)"/>
+<g stroke="#a78bfa" stroke-opacity=".2" fill="none"><circle cx="1080" cy="180" r="130"/><circle cx="1080" cy="180" r="85"/><path d="M950 180h260M1080 50v260M988 88l184 184M988 272l184-184"/></g>
+<g fill="#67e8f9"><circle cx="1080" cy="50" r="7"/><circle cx="950" cy="180" r="7"/><circle cx="1172" cy="272" r="7"/></g>
+<rect x="64" y="58" width="142" height="29" rx="14" fill="#ffffff" fill-opacity=".08"/>
+<text x="84" y="78" fill="#c4b5fd" font-family="Segoe UI,Arial,sans-serif" font-size="13" letter-spacing="2">OPEN SOURCE</text>
+<text x="64" y="166" fill="url(#accent)" font-family="Segoe UI,Arial,sans-serif" font-size="76" font-weight="700" letter-spacing="-2">Aphrodite</text>
+<text x="67" y="215" fill="#f5f3ff" font-family="Segoe UI,Arial,sans-serif" font-size="26">Your network, beautifully managed.</text>
+<text x="67" y="269" fill="#b8b3cd" font-family="Segoe UI,Arial,sans-serif" font-size="17">Private administration  ·  Adaptive subscriptions  ·  Portable deployment</text>
+<text x="67" y="310" fill="#b8b3cd" font-family="Segoe UI,Arial,sans-serif" font-size="14">EN  /  FA  /  中文  /  RU  /  AR</text>
+</svg>

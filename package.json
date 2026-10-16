@@ -1,0 +1,36 @@
+{
+  "name": "aphrodite-edge",
+  "version": "2.0.0-beta.2",
+  "private": true,
+  "type": "module",
+  "description": "A five-language Cloudflare edge workspace and resilient subscription gateway.",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "pages:build": "wrangler pages functions build --outdir dist-pages",
+    "pages:deploy": "wrangler pages deploy public",
+    "db:migrate:local": "wrangler d1 migrations apply aphrodite-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply aphrodite-db --remote",
+    "install:guided": "node installer/cli.mjs",
+    "build:portable": "node installer/build.mjs node",
+    "build:edge": "node installer/build.mjs workers",
+    "test:live": "node scripts/test-live.mjs"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261016.1",
+    "ssh2": "^1.17.0",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5",
+    "wrangler": "^4.151.1"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "qrcode-generator": "^2.0.4",
+    "ws": "^8.22.0",
+    "yaml": "^2.8.3"
+  }
+}
