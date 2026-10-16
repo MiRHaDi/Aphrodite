@@ -8,7 +8,7 @@ import { tunnelMap } from "./config";
 import type { Env } from "./types";
 import { capabilities, listPolicies, updatePolicy } from "./policies";
 import { bulkPolicies, exportBackup, importBackup } from "./admin-data";
-import { pagesStatus } from "./pages-sources";
+import { downloadPagesSource, pagesStatus } from "./pages-sources";
 
 async function adminApi(request: Request, env: Env, pathname: string): Promise<Response> {
   if (!await isAdmin(request, env)) return error("Unauthorized", 401);
@@ -21,6 +21,8 @@ async function adminApi(request: Request, env: Env, pathname: string): Promise<R
   if (policyMatch && request.method === "PUT") return updatePolicy(request, env, policyMatch[1]!);
   if (pathname === "/api/capabilities" && request.method === "GET") return capabilities(env);
   if (pathname === "/api/pages-sources" && request.method === "GET") return pagesStatus(env);
+  const pagesSourceMatch = pathname.match(/^\/api\/pages-sources\/(p[1-6])\/source$/);
+  if (pagesSourceMatch && request.method === "GET") return downloadPagesSource(env, pagesSourceMatch[1]!);
   if (pathname === "/api/backup" && request.method === "GET") return exportBackup(env);
   if (pathname === "/api/backup/import" && request.method === "POST") return importBackup(request, env, new URL(request.url).searchParams.get("apply") === "1");
   return error("Not found", 404);

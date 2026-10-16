@@ -70,3 +70,25 @@ export async function pagesStatus(env: Env): Promise<Response> {
     note: "Only healthy deployments are marked usable; static Pages are not treated as tunnel origins.",
   }, 200, { "cache-control": "no-store" });
 }
+
+export async function downloadPagesSource(env: Env, id: string): Promise<Response> {
+  const source = pagesSources(env).find(item => item.id === id);
+  if (!source) return json({ ok: false, error: "Unknown Pages source" }, 404);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch(source.url, { redirect: "follow", signal: controller.signal, headers: { "user-agent": "Aphrodite-Pages-Recovery/1.0", accept: "text/html,*/*;q=0.1" } });
+    if (!response.ok) return json({ ok: false, error: `Deployment returned ${response.status}` }, 502);
+    const declared = Number(response.headers.get("content-length") || 0);
+    if (declared > 2_000_000) return json({ ok: false, error: "Source is too large" }, 413);
+    const body = await response.arrayBuffer();
+    if (body.byteLength > 2_000_000) return json({ ok: false, error: "Source is too large" }, 413);
+    return new Response(body, { headers: {
+      "content-type": response.headers.get("content-type") || "application/octet-stream",
+      "content-disposition": `attachment; filename="${source.id}-index.html"`,
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
+    } });
+  } catch { return json({ ok: false, error: "Deployment is unavailable" }, 502); }
+  finally { clearTimeout(timeout); }
+}
