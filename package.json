@@ -15,7 +15,8 @@
     "db:migrate:remote": "wrangler d1 migrations apply aphrodite-db --remote",
     "install:guided": "node installer/cli.mjs",
     "build:portable": "node installer/build.mjs node",
-    "build:edge": "node installer/build.mjs workers"
+    "build:edge": "node installer/build.mjs workers",
+    "test:live": "node scripts/test-live.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261016.1",

@@ -1,3 +1,5 @@
+import {clientProfile,profileHeaders} from './client-profiles';
+import {renderClientSubscription} from './client-renderer';
 import { mergeSubscriptionBodies, gatewayVariants, subscriptionClient } from './subscription-merge';
 import { rewriteSubscription, subscriptionEndpoint, rotationEpoch, cleanSubscriptionName } from './subscription-addresses';
 import { cacheSeconds, origins } from "./config";
@@ -36,8 +38,9 @@ export async function subscription(request: Request, env: Env, username: string,
   if (policy) recordAccessWindow(request, env, username, ctx);
   const mode = routingMode(country);
   const url = new URL(request.url);
+  const client=clientProfile(request);
   const profile = url.searchParams.get('profile') === 'compat' ? 'compat' : 'standard';
-  const key = new Request(`${url.origin}/feed/${encodeURIComponent(username)}?v=5&client=${subscriptionClient(request)}&route=${mode}&profile=${profile}&epoch=${rotationEpoch(env)}`);
+  const key = new Request(`${url.origin}/feed/${encodeURIComponent(username)}?v=6&client=${client.cacheKey}&route=${mode}&profile=${profile}&epoch=${rotationEpoch(env)}`);
   const hit = await edgeCache.match(key);
   if (hit) return hit;
 
@@ -64,7 +67,10 @@ export async function subscription(request: Request, env: Env, username: string,
   const body = profile === 'compat'
     ? compatibilitySubscription(rewritten, subscriptionEndpoint(env, username).host, env.EDGE_ADDRESSES)
     : rewritten;
-  const response = new Response(rewriteSubscription(body,env,username), { status: 200, headers });
+  let rendered:ReturnType<typeof renderClientSubscription>;
+  try {rendered=renderClientSubscription(rewriteSubscription(body,env,username),client,country);}catch{return text('No compatible subscription format',406,{'cache-control':'no-store'});}
+  const clientHeaders=profileHeaders(client,headers,env.PROFILE_UPDATE_INTERVAL||'6');clientHeaders.set('content-type',rendered.contentType);
+  const response = new Response(rendered.body, { status: 200, headers:clientHeaders });
   ctx.waitUntil(edgeCache.put(key, response.clone()));
   return response;
 }

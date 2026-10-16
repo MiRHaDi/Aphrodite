@@ -11,5 +11,5 @@ export async function deployRender(options,env){
   for(let i=0;!url&&i<12;i++){await new Promise(r=>setTimeout(r,5000));const current=await jsonRequest('https://api.render.com/v1/services/'+service.id,{token});url=current.serviceDetails?.url;}
   if(!url)throw Error('Service created without a public URL: '+service.id);
   if(!created.deployId)await jsonRequest('https://api.render.com/v1/services/'+service.id+'/deploys',{token,method:'POST',body:{clearCache:'do_not_clear'}});
-  await verify(url,env,{attempts:90,delay:5000});return {url,service:service.id};
+  await verify(url,env,{attempts:90,delay:5000,...options.readiness});return {url,service:service.id};
 }

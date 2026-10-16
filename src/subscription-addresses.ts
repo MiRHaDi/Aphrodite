@@ -8,11 +8,15 @@ function address(value:unknown):value is string {
   if(typeof value!=='string')return false;
   try{return value.includes(':')&&new URL('https://['+value.replace(/^\[|\]$/g,'')+']/').hostname.startsWith('[')}catch{return false}
 }
-export function subscriptionEndpoint(env:Env,username:string,now=Date.now()):EdgeEndpoint {
+export function subscriptionEndpoints(env:Env):EdgeEndpoint[] {
   const primary=hostname(env.PUBLIC_EDGE_HOST)?env.PUBLIC_EDGE_HOST:'smart.dr-mirhadi.ir';
   let pool:EdgeEndpoint[]=[];
   try{const input=JSON.parse(env.EDGE_ENDPOINTS_JSON||'[]');if(Array.isArray(input))pool=input.slice(0,16).filter((e:EdgeEndpoint)=>e&&address(e.address)&&hostname(e.sni)&&hostname(e.host));}catch{}
-  if(!pool.length)return {address:primary,sni:primary,host:primary};
+  if(!pool.length)return [{address:primary,sni:primary,host:primary}];
+  return pool.filter((item,index)=>pool.findIndex(other=>other.address===item.address&&other.sni===item.sni&&other.host===item.host)===index);
+}
+export function subscriptionEndpoint(env:Env,username:string,now=Date.now()):EdgeEndpoint {
+  const pool=subscriptionEndpoints(env);
   const minutes=Math.min(1440,Math.max(1,Number(env.EDGE_ROTATION_MINUTES)||60));
   const hash=Array.from(username).reduce((sum,char)=>(sum*31+char.charCodeAt(0))>>>0,0);
   return pool[(Math.floor(now/(minutes*60000))+hash)%pool.length]!;

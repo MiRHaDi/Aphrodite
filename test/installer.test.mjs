@@ -2,12 +2,22 @@ import {afterEach,describe,expect,it,vi} from 'vitest';
 import {mkdtemp,mkdir,writeFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {configuration,jsonRequest,run} from '../installer/common.mjs';
+import {configuration,jsonRequest,run,verify} from '../installer/common.mjs';
 import {deployCloudflare} from '../installer/cloudflare.mjs';
 import {deployRender} from '../installer/render.mjs';
 let directory;
 afterEach(async()=>{vi.unstubAllGlobals();if(directory)await rm(directory,{recursive:true,force:true});});
 describe('installer adapters',()=>{
+ it('does not certify transient success followed by a failing worker',async()=>{
+  let checks=0;
+  vi.stubGlobal('fetch',vi.fn(async url=>String(url).includes('/api/overview')?Response.json({ok:++checks===1}):new Response(null,{status:404})));
+  await expect(verify('https://test.example',configuration({}),{attempts:3,delay:0})).rejects.toThrow('verification failed');
+ });
+ it('reports missing Pages access before provisioning resources',async()=>{
+  const fetcher=vi.fn(async()=>new Response(null,{status:403}));vi.stubGlobal('fetch',fetcher);
+  await expect(deployCloudflare({provider:'pages',account:'a'.repeat(32),name:'test-pages',token:'test'},configuration({}),{})).rejects.toThrow('lacks access to Pages');
+  expect(fetcher).toHaveBeenCalledTimes(1);
+ });
  it('generates independent administrator paths, credentials and build nonces',()=>{
   const a=configuration({}),b=configuration({});expect(a.ADMIN_PATH).not.toBe(b.ADMIN_PATH);expect(a.ADMIN_TOKEN).not.toBe(b.ADMIN_TOKEN);expect(a.APHRODITE_BUILD_NONCE).not.toBe(b.APHRODITE_BUILD_NONCE);
  });
@@ -26,7 +36,7 @@ describe('installer adapters',()=>{
     if(url==='https://test-panel.test-account.workers.dev/')return new Response(null,{status:404});
     return Response.json({success:true,result:{}});
   }));
-  const result=await deployCloudflare({provider:'workers',account:'a'.repeat(32),name:'test-panel',token:'test-provider-token'},env,{directory,code:'export default{}'});
+  const result=await deployCloudflare({provider:'workers',account:'a'.repeat(32),name:'test-panel',token:'test-provider-token',readiness:{delay:0}},env,{directory,code:'export default{}'});
   expect(result.url).toBe('https://test-panel.test-account.workers.dev');
   const upload=calls.find(([url,options])=>url.endsWith('/workers/scripts/test-panel')&&options.method==='PUT')[1];
   const metadata=JSON.parse(upload.body.get('metadata'));expect(metadata.bindings.find(b=>b.name==='ADMIN_TOKEN').type).toBe('secret_text');expect(await upload.body.get('worker.mjs').text()).not.toContain(env.ADMIN_TOKEN);
@@ -43,7 +53,7 @@ describe('installer adapters',()=>{
     if(url.includes('/api/overview'))return Response.json({ok:true});
     return new Response(null,{status:404});
   }));
-  await deployRender({name:'test-panel',owner:'owner-test',token:'test',plan:'starter'},configuration({}));
+  await deployRender({name:'test-panel',owner:'owner-test',token:'test',plan:'starter',readiness:{delay:0}},configuration({}));
   const body=JSON.parse(calls.find(([url])=>url.endsWith('/services'))[1].body);expect(body.serviceDetails.disk.mountPath).toBe('/data');expect(body.serviceDetails.numInstances).toBe(1);expect(body.autoDeployTrigger).toBe('off');
  });
  it('captures child errors without leaking stderr credentials',async()=>{

@@ -18,8 +18,12 @@ export function run(command,args,{cwd=root,env=process.env,input,capture=true}={
   return new Promise((resolve,reject)=>{const child=spawn(command,args,{cwd,env,windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});let output='';child.stdout.on('data',chunk=>{output+=chunk;if(output.length>2*1024*1024)output=output.slice(-2*1024*1024);});child.stderr.resume();child.on('error',()=>reject(Error('Unable to start '+command)));child.on('close',code=>code===0?resolve(capture?output:''):reject(Error('Command failed: '+command+' (exit '+code+')')));child.stdin.end(input);});
 }
 export async function verify(url,env,{attempts=24,delay=5000}={}){
+  let consecutive=0;
   for(let i=0;i<attempts;i++){
-    try {const response=await fetch(url+'/'+env.ADMIN_PATH+'/api/overview',{headers:{Authorization:'Bearer '+env.ADMIN_TOKEN},signal:AbortSignal.timeout(8000)});if(response.ok&&(await response.json()).ok){const blank=await fetch(url+'/',{signal:AbortSignal.timeout(8000)});if(blank.status===404&&(await blank.text())==='')return {verified:true};}}catch{}
+    let healthy=false;
+    try {const response=await fetch(url+'/'+env.ADMIN_PATH+'/api/overview',{headers:{Authorization:'Bearer '+env.ADMIN_TOKEN,'Cache-Control':'no-cache'},signal:AbortSignal.timeout(8000)});if(response.ok&&(await response.json()).ok){const blank=await fetch(url+'/',{headers:{'Cache-Control':'no-cache'},signal:AbortSignal.timeout(8000)});healthy=blank.status===404&&(await blank.text())==='';}}catch{}
+    consecutive=healthy?consecutive+1:0;
+    if(consecutive>=3)return {verified:true};
     if(i+1<attempts)await new Promise(resolve=>setTimeout(resolve,delay));
   }
   throw Error('Deployment exists but private API/root verification failed; no healthy deployment is claimed.');

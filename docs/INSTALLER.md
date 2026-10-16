@@ -1,5 +1,7 @@
 # Portable installer
 
+Current live validation and final-release blockers: [Cloudflare validation](CLOUDFLARE_VALIDATION.md). Client negotiation details: [Client profiles](CLIENT_PROFILES.md).
+
 Extract the source package and run `./install.ps1 --provider workers` in PowerShell, or `bash install.sh --provider pages` on Linux/macOS. The bootstrap downloads official Node 24 with SHA256 verification and installs locked dependencies. Existing Node users can run `node installer/cli.mjs`. Tokens are entered with hidden input; generated administrator credentials are printed once in an interactive terminal. No additional windows are opened.
 
 Providers: `workers`, `pages`, `railway`, `render`, `docker`, `vps`, `bundle`. Use `--preview` for a build without provider mutations or credentials. Every installation has independent accounting; installations do not share quotas.

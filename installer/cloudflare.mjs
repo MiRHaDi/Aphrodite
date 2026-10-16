@@ -10,6 +10,7 @@ export async function deployCloudflare(options,env,artifact){
   const prefix='accounts/'+account+'/';
   const existing=await fetch(base+prefix+(options.provider==='workers'?'workers/scripts/':'pages/projects/')+options.name,{headers:{Authorization:'Bearer '+token}});
   if(existing.ok)throw Error('Deployment already exists; refusing replacement');
+  if(existing.status===401||existing.status===403)throw Error('Cloudflare token lacks access to '+(options.provider==='workers'?'Workers':'Pages')+'; enable the required account permissions before retrying');
   if(existing.status!==404)throw Error('Unable to verify deployment-name availability');
   let serviceUrl;
   if(options.provider==='workers'){const subdomain=(await jsonRequest(base+prefix+'workers/subdomain',{token})).result.subdomain;serviceUrl='https://'+options.name+'.'+subdomain+'.workers.dev';}
@@ -25,17 +26,18 @@ export async function deployCloudflare(options,env,artifact){
     const response=await fetch(base+prefix+'workers/scripts/'+options.name,{method:'PUT',headers:{Authorization:'Bearer '+token},body:form});const data=await response.json();if(!response.ok||!data.success)throw Error('Worker upload failed; database id: '+database.uuid);
     await jsonRequest(base+prefix+'workers/scripts/'+options.name+'/subdomain',{token,method:'POST',body:{enabled:true,previews_enabled:false}});
     if(options.domain)await jsonRequest(base+prefix+'workers/domains',{token,method:'PUT',body:{environment:'production',hostname:options.domain,service:options.name,zone_id:options.zone}});
-    const url=options.domain?'https://'+options.domain:serviceUrl;await verify(url,env);return {url,database:database.uuid};
+    const url=options.domain?'https://'+options.domain:serviceUrl;await verify(url,env,options.readiness);return {url,database:database.uuid};
   }
   const config={production:{compatibility_date:'2026-10-03',compatibility_flags:['global_fetch_strictly_public'],d1_databases:{DB:{id:database.uuid}},env_vars:Object.fromEntries(Object.entries(env).map(([name,value])=>[name,{type:/TOKEN|PASSWORD|SECRET|ADMIN_PATH/.test(name)?'secret_text':'plain_text',value:String(value)}]))}};
   await jsonRequest(base+prefix+'pages/projects',{token,method:'POST',body:{name:options.name,production_branch:'main',deployment_configs:config}});
   const assets=join(artifact.directory,'pages');await mkdir(assets,{recursive:true});await writeFile(join(assets,'_worker.js'),artifact.code);await writeFile(join(assets,'_routes.json'),JSON.stringify({version:1,include:['/*'],exclude:[]}));
-  await run(process.execPath,[join(root,'node_modules/wrangler/bin/wrangler.js'),'pages','deploy',assets,'--project-name',options.name,'--branch','main'],{env:{...process.env,CLOUDFLARE_API_TOKEN:token,CLOUDFLARE_ACCOUNT_ID:account,CLOUDFLARE_SEND_METRICS:'false'}});
+  // An existing checkout's wrangler.toml must never override the new project's bindings.
+  await run(process.execPath,[join(root,'node_modules/wrangler/bin/wrangler.js'),'pages','deploy',assets,'--project-name',options.name,'--branch','main'],{cwd:artifact.directory,env:{...process.env,CLOUDFLARE_API_TOKEN:token,CLOUDFLARE_ACCOUNT_ID:account,CLOUDFLARE_SEND_METRICS:'false'}});
   if(options.domain){
     await jsonRequest(base+prefix+'pages/projects/'+options.name+'/domains',{token,method:'POST',body:{name:options.domain}});
     const records=(await jsonRequest(base+'zones/'+options.zone+'/dns_records?name='+encodeURIComponent(options.domain),{token})).result;
     if(records.length)throw Error('Custom domain has existing DNS records; no records were overwritten');
     await jsonRequest(base+'zones/'+options.zone+'/dns_records',{token,method:'POST',body:{type:'CNAME',name:options.domain,content:new URL(serviceUrl).hostname,proxied:true}});
   }
-  const url=options.domain?'https://'+options.domain:serviceUrl;await verify(url,env);return {url,database:database.uuid};
+  const url=options.domain?'https://'+options.domain:serviceUrl;await verify(url,env,options.readiness);return {url,database:database.uuid};
 }

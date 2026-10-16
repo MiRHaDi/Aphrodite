@@ -76,6 +76,8 @@ The portable beta uses a configured private management path and bearer authentic
 
 ## Validation and release status
 
+**Final 2.0 release is currently blocked by live Cloudflare validation.** The fresh installation later returned HTTP 500, including with a minimal control program; the saved token also lacks Pages access. See [the live validation report](docs/CLOUDFLARE_VALIDATION.md) and [client profile negotiation](docs/CLIENT_PROFILES.md). Current source validation: 77 tests, TypeScript, and Node/Miniflare bundled integration tests passed.
+
 The 2.0 installer snapshot passed 50 tests, TypeScript checks, and Node/Miniflare integration tests covering private management, account creation, subscription formats, authenticated WebSocket and quota reservation/refund. Live provider adapters, Docker container execution and performance across ISPs remain unverified for that snapshot. Each portable installation has independent accounting.
 
 Release notes describe the exact published revision. A beta label means additional deployment validation is needed; it is not a claim of production readiness.
