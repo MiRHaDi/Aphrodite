@@ -4,6 +4,16 @@ import { rewriteSubscription } from '../src/subscription-addresses';
 import type { Env } from '../src/types';
 const one='vless://user-id@smart.dr-mirhadi.ir:443?security=tls&type=ws&host=smart.dr-mirhadi.ir&sni=smart.dr-mirhadi.ir&path=%2Fedge%2Fir#Zeus%20Railway%20Edge%20Direct%20Iran';
 describe('unified subscriptions',()=>{
+ it('adds sing-box variants and renames tags together with selector and route references',()=>{
+  const env={SUBSCRIPTION_GATEWAYS_JSON:JSON.stringify([{host:'route.example',paths:['/edge/us']}])} as Env;
+  const config={outbounds:[{type:'selector',tag:'Zeus Smart',outbounds:['Railway US']},{type:'vless',tag:'Railway US',server:'smart.dr-mirhadi.ir',uuid:'test-id',tls:{enabled:true,server_name:'smart.dr-mirhadi.ir'},transport:{type:'ws',path:'/edge/us',headers:{Host:'smart.dr-mirhadi.ir'}}},{type:'direct',tag:'direct'}],route:{final:'Zeus Smart',rules:[{outbound:'direct'}]}};
+  const result=JSON.parse(rewriteSubscription(gatewayVariants(JSON.stringify(config),env),env,'user'));
+  const names=result.outbounds.map((item:{tag:string})=>item.tag);
+  expect(result.outbounds).toHaveLength(4);expect(names.every((name:string)=>!/zeus|railway|edge|direct/i.test(name))).toBe(true);
+  expect(names).toContain(result.route.final);expect(names).toContain(result.route.rules[0].outbound);
+  expect(result.outbounds[0].outbounds.every((name:string)=>names.includes(name))).toBe(true);
+  expect(result.outbounds[3].uuid).toBe('test-id');expect(result.outbounds[3].server).toBe('route.example');
+ });
  it('separates client formats for upstream paths and cache keys',()=>{expect(subscriptionClient(new Request('https://example.test/feed/user',{headers:{'user-agent':'Clash.Meta'}}))).toBe('clash-meta');expect(subscriptionClient(new Request('https://example.test/feed/user?format=xray'))).toBe('v2ray-json');expect(subscriptionClient(new Request('https://example.test/feed/user',{headers:{'user-agent':'Happ/1.0'}}))).toBe('v2ray');});
  it('merges raw/base64 sources, deduplicating only identical connection identities',()=>{
   const second=one.replace('user-id','other-id');const result=mergeSubscriptionBodies([btoa(one),one.replace(/#.*$/,'#DifferentName')+'\n'+second]);
