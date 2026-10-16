@@ -19,7 +19,7 @@ describe('subscription public addresses',()=>{
   it('preserves base64 encoding and cleans VMess display names',()=>{
     const vmess='vmess://'+btoa(JSON.stringify({id:'secret',ps:'VPN Smart',add:'vpn.dr-mirhadi.ir',host:'vpn.dr-mirhadi.ir',sni:'vpn.dr-mirhadi.ir',net:'ws'}));
     const result=atob(rewriteSubscription(btoa(link+'\n'+vmess),env,'test')).split('\n');
-    const v=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(result[1]!.slice(8)),c=>c.charCodeAt(0))));expect(v.ps).toBe('🧠 هوشمند · 2');expect(v.id).toBe('secret');expect(v.add).toBe('smart.dr-mirhadi.ir');
+    const v=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(result.find(line=>line.startsWith('vmess://'))!.slice(8)),c=>c.charCodeAt(0))));expect(v.ps).toBe('🧠 هوشمند · 1');expect(v.id).toBe('secret');expect(v.add).toBe('smart.dr-mirhadi.ir');
   });
   it('keeps YAML group references valid when names change',()=>{
     const result=parse(rewriteSubscription('proxies:\n - name: VPN Iran\n   server: vpn.dr-mirhadi.ir\nproxy-groups:\n - name: VPN Smart\n   proxies: [VPN Iran]\nrules: ["MATCH,VPN Smart"]',env,'test'));
