@@ -1,0 +1,13 @@
+# Private management and subscription entry points
+
+Deploy `src/private-worker.ts` (Pages uses the same adapter). Run `node scripts/setup-private.mjs` once per installation, or supply `--path` with a 16–128 character custom value. The generated UUID is saved as the Cloudflare ADMIN_PATH secret; do not regenerate it on each request or deployment. Administrator authentication remains mandatory. A private URL is not a replacement for authentication.
+
+The domain root, /panel, /api, /healthz, bare /feed, unknown paths and failed subscription requests return HTTP 404 with an empty body. Valid WebSocket transports remain available for authenticated protocols; their non-upgrade HTTP probes return empty responses. This reduces exposed application metadata; it cannot guarantee that network traffic or the existence of a service is undetectable.
+
+Migration 0006 creates per-account random subscription keys. Compatibility is frozen for existing subscription_routes rows only, as explicitly requested. Those existing /feed/username links continue to work. Newly created accounts get opaque /<64-hex-token> links and do not work at /feed/username without a valid token. Invalid tokens return an empty response even for legacy users. Migration runs before enabling the boundary.
+
+Management UI fetch requests are scoped to the private management prefix. Existing legacy management authentication is preserved. New account responses are adapted to return token links; legacy backend creation also registers the account route. The original backend still enforces user quotas and expiry. Existing account credentials are unchanged.
+
+Pages projects without deployments are not affected. Railway origin applications are separate services: this adapter governs the Cloudflare Worker/Pages entry points only. Provider-generated error pages and network-level responses cannot be controlled by this adapter.
+
+Live validation (2026-10-16): boundary modules were installed on all 13 existing Workers while retaining original modules, bindings and scheduled handlers. Six active gateway domains returned 404 with zero-length bodies at their roots. Unknown/API/panel/feed/health probes were blank on smart. The private management page and authenticated API worked. A temporary backend account received a working opaque link, its username-only path was denied, and the test account/route/key were removed. Frozen existing links remained functional. Authenticated WebSocket requests through smart and two alternate gateways still returned HTTP responses. Two independently failing domains returned Cloudflare 522 outside application control; these are not claimed to be blank.
