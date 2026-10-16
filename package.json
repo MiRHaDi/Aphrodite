@@ -1,9 +1,9 @@
 {
   "name": "aphrodite-edge",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "private": true,
   "type": "module",
-  "description": "A bilingual Cloudflare edge control plane and resilient subscription gateway.",
+  "description": "A five-language Cloudflare edge workspace and resilient subscription gateway.",
   "scripts": {
     "check": "tsc --noEmit",
     "test": "vitest run",

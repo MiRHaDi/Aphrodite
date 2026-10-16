@@ -32,14 +32,14 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === "/" || url.pathname === "/panel" || url.pathname === "/panel/") {
-      return new Response(PANEL_HTML, { headers: { ...securityHeaders, "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-frame-options": "DENY", "content-security-policy": "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'" } });
+      return new Response(PANEL_HTML, { headers: { ...securityHeaders, "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-frame-options": "DENY", "content-security-policy": "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'" } });
     }
     if (url.pathname.startsWith("/api/")) return adminApi(request, env, url.pathname);
     if (request.method !== "GET" && request.method !== "HEAD") return text("Method not allowed", 405, { allow: "GET, HEAD" });
     const username = usernameFromPath(url.pathname);
     if (username) return subscription(request, env, username, ctx);
     if (url.pathname in tunnelMap(env)) return tunnel(request, env, url.pathname);
-    if (url.pathname === "/healthz") return json({ ok: true, service: "aphrodite-edge", version: "1.4.0", routes: Object.keys(tunnelMap(env)).length });
+    if (url.pathname === "/healthz") return json({ ok: true, service: "aphrodite-edge", version: "1.5.0", routes: Object.keys(tunnelMap(env)).length });
     return error("Not found", 404);
   },
 };
