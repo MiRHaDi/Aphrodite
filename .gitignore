@@ -1,0 +1,10 @@
+node_modules/
+.wrangler/
+dist/
+dist-pages/
+dist-worker/
+coverage/
+.dev.vars
+wrangler.toml
+*.log
+.DS_Store
