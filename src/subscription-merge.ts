@@ -48,6 +48,14 @@ export function gatewayVariants(body:string,env:Env):string {
   if(!list){
     try{
       const doc=parse(body,{maxAliasCount:0});
+      if(doc&&Array.isArray(doc.outbounds)){
+        const extra:Array<Record<string,unknown>>=[];
+        for(const outbound of doc.outbounds){const path=outbound.transport?.path;if(outbound.transport?.type!=='ws'||outbound.tls?.enabled!==true||typeof path!=='string'||!path.startsWith('/edge/'))continue;
+          for(const gateway of gateways)if(gateway.paths.includes(path))extra.push({...outbound,tag:String(outbound.tag)+' '+(extra.length+1),server:gateway.host,tls:{...outbound.tls,server_name:gateway.host},transport:{...outbound.transport,headers:{...outbound.transport.headers,Host:gateway.host}}});
+        }
+        for(const outbound of doc.outbounds)if(['selector','urltest'].includes(outbound.type)&&Array.isArray(outbound.outbounds))outbound.outbounds.push(...extra.map(item=>item.tag));
+        doc.outbounds.push(...extra);return JSON.stringify(doc,null,2);
+      }
       if(doc&&Array.isArray(doc.proxies)){
         const extra:unknown[]=[];
         for(const proxy of doc.proxies){const path=proxy['ws-opts']?.path;if(proxy.network!=='ws'||proxy.tls!==true||typeof path!=='string'||!path.startsWith('/edge/'))continue;

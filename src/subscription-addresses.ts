@@ -38,15 +38,15 @@ export function rewriteSubscription(body:string,env:Env,username:string,now=Date
     if(depth>48)throw new Error('Configuration too deep');
     if(Array.isArray(value)){for(const item of value)collect(item,depth+1);return;}
     if(value&&typeof value==='object')for(const [key,item] of Object.entries(value)){
-      if(['name','remarks','ps'].includes(key)&&typeof item==='string'){if(!names.has(item))names.set(item,cleanSubscriptionName(item)+' · '+(names.size+1));}
+      if(['name','remarks','ps','tag'].includes(key)&&typeof item==='string'){if(!names.has(item))names.set(item,cleanSubscriptionName(item)+' · '+(names.size+1));}
       else collect(item,depth+1);
     }
   }
   function structured(value:unknown,key='',depth=0):unknown {
     if(depth>48)throw new Error('Configuration too deep');
     if(typeof value==='string') {
-      if(['name','remarks','ps'].includes(key))return names.get(value)||cleanSubscriptionName(value);
-      if(key==='proxies')return names.get(value)||value;
+      if(['name','remarks','ps','tag'].includes(key))return names.get(value)||cleanSubscriptionName(value);
+      if(['proxies','outbounds','outbound','outboundTag','inboundTag','inbound','final','default','detour'].includes(key))return names.get(value)||value;
       if(key==='rules'){const parts=value.split(',');parts[parts.length-1]=names.get(parts[parts.length-1]!)||parts[parts.length-1]!;return parts.join(',');}
       if(same(value))return ['sni','servername','serverName'].includes(key)?endpoint.sni:['host','Host'].includes(key)?endpoint.host:['address','server','add'].includes(key)?endpoint.address:value;
       return value;
