@@ -12,7 +12,7 @@ export interface Env {
   TUNNEL_RACE_WIDTH?: string;
   TUNNEL_CONNECT_TIMEOUT_MS?: string;
   TUNNEL_COOLDOWN_SECONDS?: string;
-  PAGES_SOURCES_JSON?: string;
+  EDGE_ADDRESSES?: string;
 }
 
 export interface TunnelTarget { origin: string; path: string; priority?: number; label?: string }

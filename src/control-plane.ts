@@ -58,6 +58,14 @@ export async function users(env: Env): Promise<Response> {
   return api(env, "/api/users?limit=1000&offset=0");
 }
 
+export async function nodes(env: Env): Promise<Response> {
+  const response = await api(env, "/api/nodes");
+  if (!response.ok) return error("Unable to load nodes", 502);
+  const data = await response.json() as Array<{ id?: number; name?: string; status?: string }>;
+  if (!Array.isArray(data)) return error("Invalid node response", 502);
+  return json({ nodes: data.map(node => ({ id: node.id, name: node.name, status: node.status })) });
+}
+
 export async function createUser(request: Request, env: Env): Promise<Response> {
   let input: unknown; try { input = await request.json(); } catch { return error("Invalid JSON", 400); }
   if (!validUserInput(input)) return error("Invalid user settings", 400);

@@ -9,9 +9,9 @@ The admin interface includes English, Persian, Simplified Chinese, Russian and A
 - Full interface translation, localized dates and numbers, automatic RTL for Persian and Arabic.
 - Embedded variable font with Persian/Arabic support and system fallbacks for Chinese; no external font or icon requests.
 - Original inline SVG network illustration, icon set and country flags.
-- Searchable accounts, account creation, subscription copy, deployment status and public-source downloads.
+- Searchable accounts, account creation, subscription copy and live node connection status.
 - Backup preview and explicit confirmation before applying a restore.
-- A deployment monitor failure does not log the administrator out or prevent account management.
+- A node status failure does not log the administrator out or prevent account management.
 - User-provided values render through DOM text nodes, rather than HTML interpolation.
 
 The embedded font is distributed under the SIL Open Font License; the required notice is in `licenses/embedded-font-OFL.txt`. Graphics are authored in this project. Protocol labels describe connection options; availability depends on configured nodes and the client.

@@ -3,6 +3,7 @@ import { adaptiveRoutingHeader, routingMode } from "./routing";
 import { text } from "./responses";
 import { policyDenial, policyFor, recordAccessWindow } from "./policies";
 import type { Env, SubscriptionRoute } from "./types";
+import { compatibilitySubscription } from "./subscription-profile";
 
 export function usernameFromPath(pathname: string): string | null {
   const match = pathname.match(/^\/feed\/([^/]+)\/?$/);
@@ -34,7 +35,9 @@ export async function subscription(request: Request, env: Env, username: string,
   if (denied) return denied;
   if (policy) recordAccessWindow(request, env, username, ctx);
   const mode = routingMode(country);
-  const key = new Request(`${new URL(request.url).origin}/feed/${encodeURIComponent(username)}?v=1&route=${mode}`);
+  const url = new URL(request.url);
+  const profile = url.searchParams.get('profile') === 'compat' ? 'compat' : 'standard';
+  const key = new Request(`${url.origin}/feed/${encodeURIComponent(username)}?v=2&route=${mode}&profile=${profile}`);
   const hit = await edgeCache.match(key);
   if (hit) return hit;
 
@@ -54,7 +57,11 @@ export async function subscription(request: Request, env: Env, username: string,
   for (const name of ["subscription-userinfo", "content-disposition"]) {
     const value = upstream.headers.get(name); if (value) headers.set(name, value);
   }
-  const response = new Response(upstream.body, { status: 200, headers });
+  headers.set('x-aphrodite-profile', profile);
+  const body = profile === 'compat'
+    ? compatibilitySubscription(await upstream.text(), url.hostname, env.EDGE_ADDRESSES)
+    : upstream.body;
+  const response = new Response(body, { status: 200, headers });
   ctx.waitUntil(edgeCache.put(key, response.clone()));
   return response;
 }
