@@ -1,5 +1,7 @@
 # Aphrodite
 
+Private management is now the deployment default. Configure ADMIN_PATH once with `node scripts/setup-private.mjs` (or `--path`), then use that private path. Public root/panel/API/health probes return empty responses; new accounts receive opaque subscription links. See [private entry points](docs/PRIVATE_ENTRYPOINTS.md).
+
 **A resilient, bilingual edge gateway and administration layer.**
 
 [![CI](https://github.com/MiRHaDi/Aphrodite/actions/workflows/ci.yml/badge.svg)](https://github.com/MiRHaDi/Aphrodite/actions/workflows/ci.yml)

@@ -1,5 +1,5 @@
 name = "aphrodite-edge"
-main = "src/index.ts"
+main = "src/private-worker.ts"
 compatibility_date = "2026-10-03"
 compatibility_flags = ["global_fetch_strictly_public"]
 
@@ -31,3 +31,5 @@ TUNNEL_ROUTES_JSON = '''
 # wrangler secret put ADMIN_TOKEN
 # wrangler secret put CONTROL_PLANE_TOKEN
 # Or use CONTROL_PLANE_USERNAME and CONTROL_PLANE_PASSWORD instead of a token.
+
+# Configure a stable private management path: node scripts/setup-private.mjs

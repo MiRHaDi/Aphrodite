@@ -1,6 +1,10 @@
 export interface Env {
   DB: D1Database;
   ADMIN_TOKEN: string;
+  ADMIN_PATH?: string;
+  ADMIN_TARGET_PATH?: string;
+  PRIVATE_MACHINE_TOKEN_HASH?: string;
+  PRIVATE_MACHINE_TOKEN_HEADER?: string;
   CONTROL_PLANE_TOKEN?: string;
   CONTROL_PLANE_USERNAME?: string;
   CONTROL_PLANE_PASSWORD?: string;
