@@ -1,3 +1,4 @@
+import {activity,setProgressReporter} from './progress.mjs';
 import {parseArgs} from 'node:util';
 import {interfaceFor,tokenGuide,terminalLink} from './ui.mjs';
 import {resultCard} from './result-card.mjs';
@@ -31,6 +32,7 @@ async function showResult(result){
 }
 try{
   if(!values.language&&!values.provider&&!process.env.APHRODITE_LANG&&process.stdin.isTTY){const language=await ask('Language / زبان: 1 English, 2 فارسی [1]');ui.close();ui=interfaceFor(['2','۲','fa'].includes(language)?'fa':'en');}
+  setProgressReporter(event=>ui.detail(event));
   ui.banner();ui.step(1,'Choose destination','انتخاب مقصد');
   const provider=values.provider||await ui.provider();if(!['workers','pages','railway','render','docker','vps','bundle'].includes(provider))throw Error('Unknown provider');
   if(!process.stdin.isTTY&&!values.preview&&provider!=='bundle'&&(!process.env.ADMIN_TOKEN||!(values['admin-path']||process.env.ADMIN_PATH)))throw Error('Unattended installs require ADMIN_TOKEN and ADMIN_PATH in the process environment.');
@@ -56,16 +58,16 @@ try{
     options.connections=values.connections;options.connectionProviders=values['connection-providers'];options.databaseId=values['database-id'];
     ui.step(3,'Build separate management and connection services','ساخت جداگانه مدیریت و اتصال');
     if(!values.preview)ui.step(4,'Deploy separate services and verify','استقرار سرویس‌های جدا و بررسی');
-    const result=await deploySplit(options,env,{preview:values.preview});console.log(JSON.stringify(result,null,2));
+    const result=await activity('Build and deploy separate services','Build and deploy separate services',()=>deploySplit(options,env,{preview:values.preview}));console.log(JSON.stringify(result,null,2));
     if(!values.preview&&process.stdout.isTTY)await showResult(result);
   }else{
   ui.step(3,'Build and validate deployment bundle','ساخت خروجی استقرار');
-  const platform=['workers','pages'].includes(provider)?'workers':'node';const artifact=await buildArtifact(platform);
+  const platform=['workers','pages'].includes(provider)?'workers':'node';const artifact=await activity('Build deployment bundle','Build deployment bundle',()=>buildArtifact(platform));
   if(values.preview||provider==='bundle'){console.log(JSON.stringify({provider,name:options.name,artifact:artifact.directory,...artifact.manifest,mutations:false},null,2));process.exit(0);}
   const deploy={workers:deployCloudflare,pages:deployCloudflare,docker:deployDocker,railway:deployRailway,render:deployRender,vps:deploySSH}[provider];
   ui.step(4,'Provision and check readiness · this may take a few minutes','ایجاد منابع و بررسی سلامت؛ ممکن است چند دقیقه طول بکشد');
-  const result=await deploy(options,env,artifact);
+  const result=await activity('Deploy '+provider,'Deploy '+provider,()=>deploy(options,env,artifact));
   console.log(JSON.stringify({...result,verified:true,verificationScope:'private-api-and-empty-root',transportVerified:false,buildId:artifact.manifest.buildId},null,2));
   if(process.stdout.isTTY)await showResult(result);
   }
-}catch(error){let message=String(error.message||'Installation failed');for(const value of [options?.token,options?.password,env?.ADMIN_TOKEN,...Object.entries(env||{}).filter(([key])=>/TOKEN|SECRET|PASSWORD/.test(key)).map(([,value])=>value)])if(value)message=message.replaceAll(value,'[redacted]');console.error(message);if(env&&process.stdout.isTTY){console.log('Recovery path: /'+env.ADMIN_PATH);console.log('Recovery administrator token (save privately): '+env.ADMIN_TOKEN);}process.exitCode=1;}finally{ui.close();await closeDeploymentConnections();}
+}catch(error){let message=String(error.message||'Installation failed');for(const value of [options?.token,options?.password,env?.ADMIN_TOKEN,...Object.entries(env||{}).filter(([key])=>/TOKEN|SECRET|PASSWORD/.test(key)).map(([,value])=>value)])if(value)message=message.replaceAll(value,'[redacted]');console.error(message);if(env&&process.stdout.isTTY){console.log('Recovery path: /'+env.ADMIN_PATH);console.log('Recovery administrator token (save privately): '+env.ADMIN_TOKEN);}process.exitCode=1;}finally{setProgressReporter(undefined);ui.close();await closeDeploymentConnections();}
