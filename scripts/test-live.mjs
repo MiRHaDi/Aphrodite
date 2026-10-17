@@ -23,7 +23,9 @@ try{
  }
  const identity=await api('/api/native/users/'+username);
  const users=await api('/api/users');assert.ok(users.users.some(user=>user.username===username));
- socket=new WS(url.replace(/^https:/,'wss:')+'/edge/native',{handshakeTimeout:20000,...deploymentSocketOptions(url)});await once(socket,'open');
+ const network=await api('/api/nodes');const separate=network.nodes?.find(node=>node.kind==='connection')?.hostname;
+ const connectionUrl=env.TEST_CONNECTION_URL||(separate?'https://'+separate:url);assert.equal(new URL(connectionUrl).protocol,'https:');
+ socket=new WS(connectionUrl.replace(/^https:/,'wss:')+'/edge/native',{handshakeTimeout:20000,...deploymentSocketOptions(connectionUrl)});await once(socket,'open');
  const host=Buffer.from('neverssl.com');const header=Buffer.concat([Buffer.from([0]),Buffer.from(identity.uuid.replaceAll('-',''),'hex'),Buffer.from([0,1,0,80,2,host.length]),host]);
  const received=new Promise((resolve,reject)=>{let data=Buffer.alloc(0);const timer=setTimeout(()=>reject(Error('Outbound TCP timeout')),20000);const stop=(error)=>{clearTimeout(timer);error?reject(error):resolve(data);};socket.on('message',chunk=>{data=Buffer.concat([data,Buffer.from(chunk)]);if(data.includes(Buffer.from('\r\n\r\n'))||data.length>65536)stop();});socket.once('close',()=>stop());socket.once('error',()=>stop(Error('WebSocket failed')));});
  socket.send(Buffer.concat([header,Buffer.from('GET / HTTP/1.1\r\nHost: neverssl.com\r\nConnection: close\r\n\r\n')]));

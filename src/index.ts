@@ -10,7 +10,6 @@ import { capabilities, listPolicies, updatePolicy } from "./policies";
 import { bulkPolicies, exportBackup, importBackup } from "./admin-data";
 import { nativeAdmin, nativeEnabled } from './native-accounts';
 import { nativeBackup, nativeSettings, importNative, testNativeProxy } from './native-tools';
-import { nativeTransport } from './native-transport';
 import { cloudflareUsage } from './native-metrics';
 
 async function adminApi(request: Request, env: Env, pathname: string): Promise<Response> {
@@ -44,7 +43,6 @@ export default {
       return new Response(PANEL_HTML.replace("new URL(result.subscriptionPath,location.origin)", "new URL(result.subscriptionPath,"+JSON.stringify(env.PUBLIC_EDGE_HOST ? "https://"+env.PUBLIC_EDGE_HOST : url.origin)+")").replace("if(link.origin!==location.origin)throw new Error();", ""), { headers: { ...securityHeaders, "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-frame-options": "DENY", "content-security-policy": "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'" } });
     }
     if (url.pathname.startsWith("/api/")) return adminApi(request, env, url.pathname);
-    if (/^\/edge\/native(?:\/(smart|us|nl|sg|ir|de|turkey))?$/.test(url.pathname)) return nativeTransport(request,env,ctx);
     if (request.method !== "GET" && request.method !== "HEAD") return text("Method not allowed", 405, { allow: "GET, HEAD" });
     const username = usernameFromPath(url.pathname);
     if (username) return subscription(request, env, username, ctx);

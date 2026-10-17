@@ -75,3 +75,7 @@ node test/integration/portable_artifact.mjs workers
 Node.js 24 required. Standard bundling/minification is used, with no provider-detection evasion.
 
 [MIT license](LICENSE) · [Required dependency notices](THIRD_PARTY_NOTICES.md)
+
+Split Cloudflare installation is the new default: one management service and two
+connection services share one central ledger. See [architecture](docs/ARCHITECTURE.md)
+for provider permissions, existing-database reuse and migration limits.

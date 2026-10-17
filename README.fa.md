@@ -78,3 +78,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "iex (Invoke-RestMethod '
 [MIT](LICENSE) · [اعلان‌های ضروری وابستگی‌ها](THIRD_PARTY_NOTICES.md)
 
 </div>
+
+نصب پیش‌فرض کلودفلر اکنون یک مرکز مدیریت و دو سرویس اتصال با حسابداری مشترک
+می‌سازد؛ دیتابیس فقط در مرکز است. [معماری و شرایط انتقال](docs/ARCHITECTURE.md).

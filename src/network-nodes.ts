@@ -4,6 +4,11 @@ import {tunnelMap} from './config';
 import type {Env} from './types';
 export function nativeNodes(env:Env,request?:Request){
  if(!nativeEnabled(env))return [];
+ if(env.DEPLOYMENT_ROLE==='management'){
+  let endpoints:ReturnType<typeof subscriptionEndpoints>=[];
+  try{if(JSON.parse(env.CONNECTION_ENDPOINTS_JSON||'[]').length)endpoints=subscriptionEndpoints({...env,EDGE_ENDPOINTS_JSON:env.CONNECTION_ENDPOINTS_JSON})}catch{}
+  return endpoints.map((e,index)=>({id:'connection-'+(index+1),name:'Aphrodite '+(index+1),status:'configured',kind:'connection',country:'auto',protocols:['VLESS · WS'],addresses:[e.address],hostname:e.host}));
+ }
  const host=env.PUBLIC_EDGE_HOST||(request?new URL(request.url).hostname:'');
  const endpoints=host?subscriptionEndpoints({...env,PUBLIC_EDGE_HOST:host}):[];
  const nodes=[{id:'native-local',name:'Aphrodite',nameKey:'localNode',status:'ready',kind:'native',country:'auto',protocols:['VLESS · WS'],addresses:endpoints.map(e=>e.address),hostname:host}];

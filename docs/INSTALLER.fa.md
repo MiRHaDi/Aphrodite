@@ -4,7 +4,7 @@
 
 در خطای شبکه استقرار، نصب‌کننده می‌تواند نام عمومی میزبان را از DNS روی HTTPS گوگل در 8.8.8.8 بگیرد. نام میزبان و SNI و بررسی گواهی حفظ می‌شوند؛ مسیر خصوصی و توکن و هدر درخواست به DNS فرستاده نمی‌شوند. خطاهای HTTP با IP دیگر تکرار نمی‌شوند. کد مسدودی 8000119 نیازمند بازبینی کلودفلر است.
 
-نصب‌کننده برای Workers، Pages، Railway، Render، Docker و VPS با SSH آماده شده است. هر نصب پایگاه داده و حسابداری مستقل دارد؛ چند نصب جدا سهمیه مشترک ندارند. سرویس‌های موجود بازنویسی نمی‌شوند.
+نصب‌کننده برای Workers، Pages، Railway، Render، Docker و VPS با SSH آماده شده است. هر مجموعه نصب پایگاه داده و حسابداری مستقل دارد؛ سرویس‌های اتصال درون معماری جدا، سهمیه مشترک مرکز را استفاده می‌کنند. سرویس‌های موجود بازنویسی نمی‌شوند.
 
 ## شروع در ویندوز
 
@@ -64,3 +64,27 @@ VPS فقط در Debian/Ubuntu، با root یا sudo بدون رمز، پیش‌�
 نام سرویس موجود رد می‌شود. نصب شکست‌خورده ممکن است منابع تازه‌ای باقی بگذارد؛ حذف، rollback و ارتقای خودکار پیاده‌سازی نشده‌اند. پیش از حذف دیسک/volume از داده‌ها نسخه پشتیبان بگیرید.
 
 منابع رسمی: [Workers API](https://developers.cloudflare.com/api/resources/workers/subresources/scripts/methods/update/)، [Pages Direct Upload](https://developers.cloudflare.com/pages/how-to/use-direct-upload-with-continuous-integration/)، [Railway API](https://docs.railway.com/integrations/api/api-cookbook)، [Render Docker](https://render.com/docs/docker).
+
+## معماری جدا در نصب کلودفلر
+
+نصب Cloudflare اکنون به صورت پیش‌فرض یک مرکز مدیریت و دو سرویس اتصال جدا
+(یک Worker و یک Pages) می‌سازد. دیتابیس فقط به مرکز مدیریت متصل است؛ ترافیک
+کاربران از سرویس‌های اتصال عبور می‌کند و سهمیه همه آن‌ها مشترک است.
+
+```bash
+node installer/cli.mjs --provider pages --name my-panel --connections 2
+node installer/cli.mjs --provider workers --name my-panel --connections 3 --connection-providers workers
+node installer/cli.mjs --provider pages --name my-panel --preview
+```
+
+توکن پیش‌فرض به هر سه مجوز Workers Scripts Edit، Cloudflare Pages Edit و D1 Edit
+نیاز دارد. با انتخاب فقط یک نوع سرویس اتصال، مجوزهای همان نوع کافی است.
+گزینه `--topology standalone` حالت یکپارچه قبلی را صریحاً انتخاب می‌کند.
+Docker، Railway و سایر مقصدها فعلاً همچنان یکپارچه هستند.
+
+برای استفاده از D1 موجود `--database-id UUID` را بدهید؛ جدول کاربران بازنویسی
+نمی‌شود و migration قدیمی دوباره اجرا نمی‌شود. این گزینه نام دامنه یا سرویس
+موجود را جابه‌جا نمی‌کند. برای حفظ لینک‌های اشتراک قبلی، دامنه فعلی و کلیدهای
+اشتراک باید در انتقال حفظ شوند. منابع موجود خودکار حذف یا جایگزین نمی‌شوند.
+رفع مسدودی جاری کلودفلر پیش‌نیاز استقرار زنده است؛ این معماری تضمین رفع مسدودی نیست.
+[جزئیات معماری و انتقال](ARCHITECTURE.md).

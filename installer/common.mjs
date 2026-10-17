@@ -22,7 +22,7 @@ export async function verify(url,env,{attempts=24,delay=5000}={}){
   let consecutive=0;
   for(let i=0;i<attempts;i++){
     let healthy=false;
-    try {const response=await deploymentFetch(url+'/'+env.ADMIN_PATH+'/api/overview',{headers:{Authorization:'Bearer '+env.ADMIN_TOKEN,'Cache-Control':'no-cache'},signal:AbortSignal.timeout(20000)});if(response.ok&&(await response.json()).ok){const blank=await deploymentFetch(url+'/',{headers:{'Cache-Control':'no-cache'},signal:AbortSignal.timeout(20000)});healthy=blank.status===404&&(await blank.text())==='';}}catch{}
+    try {const connection=env.DEPLOYMENT_ROLE==='connection';const response=await deploymentFetch(url+(connection?'/'+env.EDGE_PROBE_PATH:'/'+env.ADMIN_PATH+'/api/overview'),{method:connection?'POST':'GET',headers:{Authorization:'Bearer '+(connection?env.EDGE_CONTROL_TOKEN:env.ADMIN_TOKEN),'Cache-Control':'no-cache'},signal:AbortSignal.timeout(20000)});if(response.ok&&(await response.json()).ok){const blank=await deploymentFetch(url+'/',{headers:{'Cache-Control':'no-cache'},signal:AbortSignal.timeout(20000)});healthy=blank.status===404&&(await blank.text())==='';}}catch{}
     consecutive=healthy?consecutive+1:0;
     if(consecutive>=3)return {verified:true};
     if(i+1<attempts)await new Promise(resolve=>setTimeout(resolve,delay));

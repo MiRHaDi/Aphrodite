@@ -18,18 +18,27 @@ export async function deployCloudflare(options,env,artifact){
   else serviceUrl='https://'+options.name+'.pages.dev';
   env.PUBLIC_EDGE_HOST=options.domain||new URL(serviceUrl).hostname;env.EDGE_HOST_ALIASES=env.PUBLIC_EDGE_HOST;
   if(options.domain)required(options.zone,'--zone for custom domain installation');
-  const database=(await jsonRequest(base+prefix+'d1/database',{token,method:'POST',body:{name:options.name+'-data'}})).result;
+  const connection=env.DEPLOYMENT_ROLE==='connection';
+  if(connection&&options.databaseId)throw Error('Connection deployments must not have a database');
+  if(options.databaseId&&!/^[a-f0-9-]{36}$/i.test(options.databaseId))throw Error('Invalid database id');
+  const database=connection?null:options.databaseId?{uuid:options.databaseId}:(await jsonRequest(base+prefix+'d1/database',{token,method:'POST',body:{name:options.name+'-data'}})).result;
+  if(options.databaseId){
+    const schema=await jsonRequest(base+prefix+'d1/database/'+database.uuid+'/query',{token,method:'POST',body:{sql:'PRAGMA table_info(native_accounts)'}});
+    const columns=schema.result?.[0]?.results?.map(row=>row.name)||[];
+    if(!['username','uuid','subscription_key','settings_json','revision'].every(column=>columns.includes(column)))throw Error('Existing database schema is incompatible; no migration or overwrite was attempted');
+  }
   const migrationFiles=(await readdir(join(artifact.directory,'migrations'))).filter(n=>n.endsWith('.sql')).sort();
-  for(const migration of migrationFiles)await jsonRequest(base+prefix+'d1/database/'+database.uuid+'/query',{token,method:'POST',body:{sql:await readFile(join(artifact.directory,'migrations',migration),'utf8')}});
+  // Existing databases are reused without replaying migrations or replacing rows.
+  if(database&&!options.databaseId)for(const migration of migrationFiles)await jsonRequest(base+prefix+'d1/database/'+database.uuid+'/query',{token,method:'POST',body:{sql:await readFile(join(artifact.directory,'migrations',migration),'utf8')}});
   if(options.provider==='workers'){
-    const bindings=[{type:'d1',name:'DB',id:database.uuid},...Object.entries(env).map(([name,text])=>({type:/TOKEN|PASSWORD|SECRET|ADMIN_PATH/.test(name)?'secret_text':'plain_text',name,text:String(text)}))];
+    const bindings=[...(database?[{type:'d1',name:'DB',id:database.uuid}]:[]),...Object.entries(env).map(([name,text])=>({type:/TOKEN|PASSWORD|SECRET|ADMIN_PATH|EDGE_CONTROL_PATH|EDGE_PROBE_PATH/.test(name)?'secret_text':'plain_text',name,text:String(text)}))];
     const form=new FormData();form.set('metadata',JSON.stringify({main_module:'worker.mjs',compatibility_date:'2026-10-03',compatibility_flags:['global_fetch_strictly_public'],bindings}));form.set('worker.mjs',new Blob([artifact.code],{type:'application/javascript+module'}),'worker.mjs');
-    const response=await fetch(base+prefix+'workers/scripts/'+options.name,{method:'PUT',headers:{Authorization:'Bearer '+token},body:form});const data=await response.json();if(!response.ok||!data.success)throw Error('Worker upload failed; database id: '+database.uuid);
+    const response=await fetch(base+prefix+'workers/scripts/'+options.name,{method:'PUT',headers:{Authorization:'Bearer '+token},body:form});const data=await response.json();if(!response.ok||!data.success)throw Error('Worker upload failed; database id: '+(database?.uuid||'none'));
     await jsonRequest(base+prefix+'workers/scripts/'+options.name+'/subdomain',{token,method:'POST',body:{enabled:true,previews_enabled:false}});
     if(options.domain)await jsonRequest(base+prefix+'workers/domains',{token,method:'PUT',body:{environment:'production',hostname:options.domain,service:options.name,zone_id:options.zone}});
-    const url=options.domain?'https://'+options.domain:serviceUrl;await verify(url,env,options.readiness);return {url,database:database.uuid};
+    const url=options.domain?'https://'+options.domain:serviceUrl;await verify(url,env,options.readiness);return {url,database:database?.uuid};
   }
-  const config={production:{compatibility_date:'2026-10-03',compatibility_flags:['global_fetch_strictly_public'],d1_databases:{DB:{id:database.uuid}},env_vars:Object.fromEntries(Object.entries(env).map(([name,value])=>[name,{type:/TOKEN|PASSWORD|SECRET|ADMIN_PATH/.test(name)?'secret_text':'plain_text',value:String(value)}]))}};
+  const config={production:{compatibility_date:'2026-10-03',compatibility_flags:['global_fetch_strictly_public'],...(database?{d1_databases:{DB:{id:database.uuid}}}:{}),env_vars:Object.fromEntries(Object.entries(env).map(([name,value])=>[name,{type:/TOKEN|PASSWORD|SECRET|ADMIN_PATH|EDGE_CONTROL_PATH|EDGE_PROBE_PATH/.test(name)?'secret_text':'plain_text',value:String(value)}]))}};
   await jsonRequest(base+prefix+'pages/projects',{token,method:'POST',body:{name:options.name,production_branch:'main',deployment_configs:config}});
   // A separate OS temporary directory prevents ancestor checkout configuration from being read.
   const assets=await mkdtemp(join(tmpdir(),'aphrodite-pages-'));
@@ -43,5 +52,5 @@ export async function deployCloudflare(options,env,artifact){
     if(records.length)throw Error('Custom domain has existing DNS records; no records were overwritten');
     await jsonRequest(base+'zones/'+options.zone+'/dns_records',{token,method:'POST',body:{type:'CNAME',name:options.domain,content:new URL(serviceUrl).hostname,proxied:true}});
   }
-  const url=options.domain?'https://'+options.domain:serviceUrl;await verify(url,env,options.readiness);return {url,database:database.uuid};
+  const url=options.domain?'https://'+options.domain:serviceUrl;await verify(url,env,options.readiness);return {url,database:database?.uuid};
 }

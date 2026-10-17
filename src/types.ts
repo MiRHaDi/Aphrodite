@@ -1,4 +1,11 @@
 export interface Env {
+  DEPLOYMENT_ROLE?: 'management' | 'connection' | 'standalone';
+  EDGE_CONTROL_URL?: string;
+  EDGE_CONTROL_SERVICE?: Fetcher;
+  EDGE_CONTROL_TOKEN?: string;
+  EDGE_CONTROL_PATH?: string;
+  EDGE_PROBE_PATH?: string;
+  CONNECTION_ENDPOINTS_JSON?: string;
   DB: D1Database;
   ADMIN_TOKEN: string;
   ADMIN_PATH?: string;
