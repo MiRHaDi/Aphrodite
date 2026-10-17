@@ -11,7 +11,7 @@ function address(value:unknown):value is string {
 export function subscriptionEndpoints(env:Env):EdgeEndpoint[] {
   const primary=hostname(env.PUBLIC_EDGE_HOST)?env.PUBLIC_EDGE_HOST:'smart.dr-mirhadi.ir';
   let pool:EdgeEndpoint[]=[];
-  try{const input=JSON.parse(env.EDGE_ENDPOINTS_JSON||'[]');if(Array.isArray(input))pool=input.slice(0,16).filter((e:EdgeEndpoint)=>e&&address(e.address)&&hostname(e.sni)&&hostname(e.host));}catch{}
+  try{const input=JSON.parse(env.EDGE_ENDPOINTS_JSON||'[]');if(Array.isArray(input))pool=input.slice(0,64).filter((e:EdgeEndpoint)=>e&&address(e.address)&&hostname(e.sni)&&hostname(e.host));}catch{}
   if(!pool.length)return [{address:primary,sni:primary,host:primary}];
   return pool.filter((item,index)=>pool.findIndex(other=>other.address===item.address&&other.sni===item.sni&&other.host===item.host)===index);
 }

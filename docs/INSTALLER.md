@@ -57,7 +57,7 @@ Ctrl+C closes it. Neither a browser nor a new console is opened automatically.
 # Live installation progress
 
 
-Builds, database operations, uploads and readiness checks report timestamped status and results. Long deployment operations emit elapsed-time updates every five seconds. Bootstrap downloads show download progress; dependency installation also emits waiting updates. These messages do not claim a percentage or verified outbound connectivity.
+Builds, database operations, uploads and readiness checks report timestamped status and results. Long deployment operations emit elapsed-time updates at most every thirty seconds. Bootstrap downloads show download progress; dependency installation also emits waiting updates. These messages do not claim a percentage or verified outbound connectivity.
 
 Compatible terminals display cyan clickable links, yellow token prompts/results, green success, yellow waiting and red failure messages. The private local result page provides the token-copy button. Progress excludes API credentials, private request URLs and raw deployment-tool output. `NO_COLOR` disables terminal styling; plain URLs remain visible.
 
@@ -65,4 +65,23 @@ Compatible terminals display cyan clickable links, yellow token prompts/results,
 
 ## English-only installer and sequential logs
 
-The installer, prompts and local result page use English only; there is no language menu, RTL setting or shaping dependency. The application panel keeps its five languages. Bootstrap messages use [BOOTSTRAP] rather than misleading fixed step totals, including when Node is cached. The destination menu uses A-G. Every installation event shares one increasing counter, including start, completion, waiting and error events. Logs describe bundles and sizes, provider API operations and HTTP statuses, database creation or reuse and migrations, uploads, process exit codes, readiness results and retry delays. Long operations report elapsed time every five seconds. API credentials, private API paths, request bodies and raw tool output are excluded from progress logs.
+The installer, prompts and local result page use English only; there is no language menu, RTL setting or shaping dependency. The application panel keeps its five languages. Bootstrap messages use [BOOTSTRAP] rather than misleading fixed step totals, including when Node is cached. The destination menu uses A-G. Every installation event shares one increasing counter, including start, completion, waiting and error events. Logs describe bundles and sizes, provider API operations and HTTP statuses, database creation or reuse and migrations, uploads, process exit codes, readiness results and retry delays. Long operations report elapsed time at most every thirty seconds. API credentials, private API paths, request bodies and raw tool output are excluded from progress logs.
+
+## Resume and add Cloudflare accounts
+
+Interactive Cloudflare installation saves non-secret choices, service identities, database IDs and completed stages under the current user's Aphrodite installer state directory. On Windows this defaults to `%LOCALAPPDATA%/Aphrodite/installer/installation.json`; on Linux it uses `XDG_STATE_HOME` or `~/.local/state`. Provider tokens, administrator credentials and shared machine keys go into Windows Credential Manager, macOS Keychain or Linux Secret Service (`secret-tool` with a running/unlocked service). They are not written into the checkpoint file. Keep the same operating-system user when resuming. On systems without a supported credential store, use `--no-save` with your own `ADMIN_TOKEN` and `ADMIN_PATH`; that mode does not save a resumable deployment.
+
+Rerun the one-line installer: choose Resume, Add account, or New. Saved choices are defaults; Enter keeps a saved token and a replacement can be pasted. A new installation archives the previous metadata. Management name/account changes require New; adding a different account uses Add account and preserves the existing control plane and users. Old installer versions did not create checkpoints, so their existing resources cannot be automatically adopted by this mechanism.
+
+```sh
+node installer/cli.mjs --resume
+node installer/cli.mjs --resume --repair
+node installer/cli.mjs --resume --add-account --connection-account ACCOUNT_ID --connection-token-env CF_SECOND --connections 2 --connection-providers workers,pages
+```
+
+Supply `CF_SECOND` in the current process environment, or paste the additional token interactively. Each account profile supports 1-8 connection services, up to 64 total per installation. Names stay stable across reruns. The management service owns D1; connection accounts receive restricted accounting credentials. Only connections that pass readiness are appended to the persistent central subscription registry. Existing users, quota accounting and subscription links stay on the central service. Completed unchanged services are checked without a new upload; `--repair` rebuilds owned services. Ownership markers prevent overwriting an unrelated Worker or Pages project, and mismatching database bindings stop recovery rather than replacing user data. Cloudflare checkpoints and multi-account connection deployment apply to Workers/Pages; the other destinations remain standalone.
+
+Interactive waits use an ASCII spinner and elapsed time on one line. Repeated unchanged status is printed no more often than every 30 seconds; changed status and completed operations appear immediately. Redirected output omits animation. PowerShell prints friendly stop/recovery messages instead of a throw stack. Health checks recognize Cloudflare 1101/1102, 1010 and 1027 and stop with an actionable diagnosis instead of repeating the same response for two minutes. Authentication, database schema, application API readiness and root privacy checks still determine success; a spinner is not proof of connectivity.
+
+### Per-service address restriction
+Before upload, each Cloudflare artifact is bound to its exact service hostname and configured custom domain. Other hosts (including Pages preview aliases) return an empty 404 before application execution. Adding a domain requires rebuilding with that domain configured. The restriction is embedded in the minified server bundle, not selected by client headers. It is not DRM: an administrator with source/deployment access can modify or remove it. Server source is not a public asset; browser-delivered assets remain inspectable. No polymorphic signature evasion is used.

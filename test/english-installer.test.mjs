@@ -4,6 +4,12 @@ import {fileURLToPath} from 'node:url';
 import {expect,it} from 'vitest';
 import {resultHtml} from '../installer/result-card.mjs';
 const root=fileURLToPath(new URL('../',import.meta.url));
+it('handles invalid options and configuration without a JavaScript stack trace',()=>{
+ for(const args of [['--unknown-option'],['--provider','workers','--name','invalid name','--no-save']]){
+  const result=spawnSync(process.execPath,['installer/cli.mjs',...args],{cwd:root,windowsHide:true,encoding:'utf8',timeout:10000});
+  expect(result.status).not.toBe(0);expect(result.stderr+result.stdout).not.toMatch(/\n\s+at\s|UnhandledPromiseRejection/);
+ }
+},30000);
 it('has no Persian rendering or language-selection code in installer sources',()=>{
  for(const file of readdirSync(new URL('../installer/',import.meta.url)).filter(f=>f.endsWith('.mjs'))){
   const source=readFileSync(new URL('../installer/'+file,import.meta.url),'utf8');

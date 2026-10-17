@@ -11,9 +11,12 @@ import { bulkPolicies, exportBackup, importBackup } from "./admin-data";
 import { nativeAdmin, nativeEnabled } from './native-accounts';
 import { nativeBackup, nativeSettings, importNative, testNativeProxy } from './native-tools';
 import { cloudflareUsage } from './native-metrics';
+import {deploymentConnections,deploymentHealth} from './deployment-registry';
 
 async function adminApi(request: Request, env: Env, pathname: string): Promise<Response> {
   if (!await isAdmin(request, env)) return error("Unauthorized", 401);
+  if(pathname==='/api/deployment/health'&&request.method==='GET')return deploymentHealth(env);
+  if(pathname==='/api/deployment/connections')return deploymentConnections(request,env);
   if(pathname==='/api/cloudflare/usage'&&request.method==='GET')return cloudflareUsage(env);
   if (pathname.startsWith('/api/native/') && !nativeEnabled(env)) return error('Native core is not enabled',503);
   if (pathname === '/api/native/settings') return nativeSettings(request,env);

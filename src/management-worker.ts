@@ -2,6 +2,8 @@ import application from './index';
 import {privateApplication,blank} from './private-entry';
 import {nativeIdentity,ledger} from './native-accounts';
 import type {Env} from './types';
+import {connectionRegistry} from './deployment-registry';
+const registryCache=new WeakMap<object,{expires:number;value:string}>();
 const privatePanel=privateApplication(application);
 async function authorized(request:Request,env:Env){
  if(!env.EDGE_CONTROL_TOKEN||env.EDGE_CONTROL_TOKEN.length<32)return false;
@@ -31,5 +33,17 @@ export default {async fetch(request:Request,env:Env,ctx:ExecutionContext){
  if(request.headers.get('upgrade'))return blank();
  const url=new URL(request.url);
  if(env.EDGE_CONTROL_PATH&&url.pathname==='/'+env.EDGE_CONTROL_PATH)return machineControl(request,env);
- return privatePanel.fetch(request,{...env,DEPLOYMENT_ROLE:'management'},ctx);
+ let effective={...env,DEPLOYMENT_ROLE:'management' as const};
+ const path=url.pathname;
+ if(path.startsWith('/'+env.ADMIN_PATH)||/^\/(?:[a-f0-9]{64}|feed\/)/.test(path)){
+  try{
+   let cached=registryCache.get(env.DB);
+   if(!cached||cached.expires<Date.now()||path.endsWith('/api/deployment/connections')){
+    cached={expires:Date.now()+10000,value:JSON.stringify(await connectionRegistry(env))};registryCache.set(env.DB,cached);
+   }
+   effective={...effective,EDGE_ENDPOINTS_JSON:cached.value,CONNECTION_ENDPOINTS_JSON:cached.value};
+   if(path.endsWith('/api/deployment/connections')&&request.method==='POST')registryCache.delete(env.DB);
+  }catch{/* The authenticated health endpoint diagnoses missing schema/bindings. */}
+ }
+ return privatePanel.fetch(request,effective,ctx);
 }};
