@@ -1,5 +1,42 @@
 # Cloudflare deployment validation — 2026-10-17
 
+## Legacy account data recovery (2026-10-17)
+
+After the existing `smart` hostname was moved to the standalone Pages project,
+legacy subscriptions returned 404 because its separate database contained only
+disabled diagnostic accounts. Both databases were encrypted into local recovery
+snapshots before migration. The original database was left unchanged.
+
+The destination now contains all 115 original subscription keys, routes and raw
+legacy data, including original proxy/country metadata. The 112 complete legacy
+profiles were projected into native accounts with the same UUIDs and subscription
+keys, original consumption/request counters, expiration and restrictive limits.
+Existing destination accounts were preserved. Six compatible HTTP/SOCKS proxy
+entries per profile are usable by the native schema; the remaining WSS entry is
+archived intact in the original profiles, not interpreted as an HTTP proxy. Native
+VLESS projection does not claim restored Trojan/Shadowsocks or country routing.
+
+All 112 opaque subscriptions returned HTTP 200 and contained their original UUID.
+Six client formats for `iust` returned 200 with matching quota and expiration
+headers. The existing `/feed/iust?token=...` also returned 200. The unchanged bare
+`/feed/iust` still returns 404: the deployed private handler authorizes the legacy
+name but fails to supply its existing key internally to the native renderer.
+The source correction now forwards that stored key only after legacy permission
+has been checked; token-only users and invalid explicit tokens remain denied.
+This correction is not deployed because the project remains upload-blocked.
+
+An edge redirect compatibility layer could preserve the original bare URLs while
+the source deployment is blocked. Current account list/ruleset API calls return
+403; enabling it requires Account Bulk URL Redirects Edit and Account Filter
+Lists Edit. No redirect rule has been installed or claimed active.
+
+Three route-only accounts (`mirhadi-family`, `miLaD`, `mehdi_khorasani`) retain
+their exact keys/routes/policies but have no complete identity profile in any of
+the account's D1 databases. Their previous service hostname returns 404, and the
+authenticated Railway project listing is empty. No replacement UUID or guessed
+usage/expiration was generated. Their subscriptions and live TCP functionality
+remain unverified/unrestored.
+
 ## Existing Pages outbound investigation (2026-10-17, follow-up)
 
 The unchanged `aphrodite-check-pages-1792175765` production deployment from
