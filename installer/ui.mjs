@@ -1,14 +1,18 @@
 import {createInterface} from 'node:readline/promises';
 import {Writable} from 'node:stream';
+import {terminalText,textMode} from './terminal-text.mjs';
 
-export function interfaceFor(language='en',{input=process.stdin,output=process.stdout}={}){
+export function interfaceFor(language='en',{input=process.stdin,output=process.stdout,rtlMode=process.env.APHRODITE_RTL||'auto',platform=process.platform}={}){
  let reader,muted=false;
  const fa=language==='fa',color=output.isTTY&&!process.env.NO_COLOR;
  const paint=(text,code)=>color?'\x1b['+code+'m'+text+'\x1b[0m':text;
- const pick=(en,persian)=>fa?persian:en;
+ const format=text=>terminalText(text,{mode:rtlMode,isTTY:output.isTTY,platform,columns:output.columns});
+ const pick=(en,persian)=>format(fa?persian:en);
+ textMode({mode:rtlMode,isTTY:output.isTTY,platform});
  function banner(){if(process.stdout.isTTY)console.log('\n'+paint('  ╭──────────────────────────────────────────╮\n  │             A P H R O D I T E            │\n  ╰──────────────────────────────────────────╯','1;35')+'\n  '+pick('Configure  →  Build  →  Deploy  →  Verify','تنظیمات  ←  ساخت  ←  استقرار  ←  بررسی')+'\n');}
  function step(number,en,persian){console.log(paint('  ['+number+'/4] ','36')+pick(en,persian));}
  async function ask(label,secret=false){
+  label=format(label);
   if(!input.isTTY)throw Error('Missing interactive input: '+label);
   if(!reader){const writer=new Writable({write(chunk,encoding,done){if(!muted)output.write(chunk);done();}});reader=createInterface({input,output:writer,terminal:true,crlfDelay:Infinity});}
   muted=secret;

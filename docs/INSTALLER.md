@@ -60,3 +60,5 @@ Builds, database operations, uploads and readiness checks report timestamped sta
 
 Compatible terminals display cyan clickable links, yellow token prompts/results, green success, yellow waiting and red failure messages. The private local result page provides the token-copy button. Progress excludes API credentials, private request URLs and raw deployment-tool output. `NO_COLOR` disables terminal styling; plain URLs remain visible.
 
+Persian terminal output uses contextual glyph shaping and Unicode bidi reordering in interactive Windows consoles by default, with logical word wrapping before conversion. PowerShell console output uses UTF-8. `APHRODITE_RTL=native` disables conversion for terminals that already implement bidi; `visual` forces compatibility mode on other systems, and `auto` restores the default. Redirected logs retain logical Unicode order. Credentials, URL payloads and browser HTML are not reordered. Use a font with Persian glyph coverage. Pre-dependency bootstrap messages remain in English.
+
