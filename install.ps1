@@ -1,5 +1,8 @@
 param([Parameter(ValueFromRemainingArguments=$true)][string[]]$InstallerArguments)
 $ErrorActionPreference='Stop'
+# UTF-8 fixes console encoding; terminal-text.mjs handles glyph order/shaping.
+$OutputEncoding=[System.Text.UTF8Encoding]::new($false)
+[Console]::OutputEncoding=$OutputEncoding
 $ProgressPreference='Continue'
 Write-Host "`nAphrodite | Preparing a private installation" -ForegroundColor Cyan
 $installerCache=Join-Path $env:LOCALAPPDATA 'Aphrodite\installer'
