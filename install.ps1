@@ -1,10 +1,15 @@
 param([Parameter(ValueFromRemainingArguments=$true)][string[]]$InstallerArguments)
 $ErrorActionPreference='Stop'
-# UTF-8 fixes console encoding; terminal-text.mjs handles glyph order/shaping.
+# APHRODITE_CONSOLE_ENCODING_START
+# Keep this bootstrap ASCII-only for Windows PowerShell 5.1 source decoding.
+# Configure both console directions and PowerShell-to-native pipelines.
 $OutputEncoding=[System.Text.UTF8Encoding]::new($false)
+[Console]::InputEncoding=$OutputEncoding
 [Console]::OutputEncoding=$OutputEncoding
+# APHRODITE_CONSOLE_ENCODING_END
 $ProgressPreference='Continue'
 Write-Host "`nAphrodite | Preparing a private installation" -ForegroundColor Cyan
+Write-Host ('Console UTF-8 | input: '+[Console]::InputEncoding.CodePage+' | output: '+[Console]::OutputEncoding.CodePage) -ForegroundColor DarkGray
 $installerCache=Join-Path $env:LOCALAPPDATA 'Aphrodite\installer'
 New-Item -ItemType Directory -Force -Path $installerCache | Out-Null
 $installerArch=if([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq 'Arm64'){'arm64'}else{'x64'}

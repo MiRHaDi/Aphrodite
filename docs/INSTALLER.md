@@ -56,6 +56,8 @@ selected for Ctrl+C. The terminal stays running while this local page is availab
 Ctrl+C closes it. Neither a browser nor a new console is opened automatically.
 # Live installation progress
 
+Windows bootstrap configures `$OutputEncoding`, `[Console]::InputEncoding` and `[Console]::OutputEncoding` as UTF-8 and prints the input/output code pages (`65001`). This covers native-process input as well as console output. A Windows PowerShell 5.1 regression test verifies a Persian round trip through Node. The bootstrap remains ASCII-only to avoid legacy script-file decoding problems. A terminal font may still lack shaped glyphs; `APHRODITE_RTL=native` bypasses presentation-form shaping in that case.
+
 Builds, database operations, uploads and readiness checks report timestamped status and results. Long deployment operations emit elapsed-time updates every five seconds. Bootstrap downloads show download progress; dependency installation also emits waiting updates. These messages do not claim a percentage or verified outbound connectivity.
 
 Compatible terminals display cyan clickable links, yellow token prompts/results, green success, yellow waiting and red failure messages. The private local result page provides the token-copy button. Progress excludes API credentials, private request URLs and raw deployment-tool output. `NO_COLOR` disables terminal styling; plain URLs remain visible.
