@@ -1,4 +1,4 @@
-import worker from "../src/private-worker";
+import worker from "../src/direct-worker";
 import type { Env } from "../src/types";
 
 interface PagesContext {

@@ -1,5 +1,31 @@
 # Cloudflare deployment validation — 2026-10-17
 
+## Existing Pages outbound investigation (2026-10-17, follow-up)
+
+The unchanged `aphrodite-check-pages-1792175765` production deployment from
+2026-10-16 18:36 UTC was tested again through its existing custom domain. Private
+panel/authentication, bounded account creation and six subscription profiles passed.
+An authenticated VLESS DNS session returned a real DNS answer (2-byte protocol
+acknowledgement plus 48 response bytes); accounting recorded 80 bytes and two
+requests across DNS/TCP tests. TCP to a public non-Cloudflare test destination
+closed with WebSocket 1008 before a protocol acknowledgement. Its invocation tail
+reported `ok` with no uncaught exceptions: the application catches and hides the
+underlying connection error. The exact TCP cause is therefore not confirmed.
+
+Diagnostic accounts were disabled and the temporary log subscriptions removed.
+An encrypted local recovery snapshot includes project configuration and D1 data.
+No existing account credentials, settings or bindings were changed.
+
+The standard Pages Functions entry now uses the direct-socket entry rather than
+the relay-only entry. This fixes that installation path; it is not evidence that
+the active portable bundle lacked a socket factory. Transport failures now log
+only a fixed phase and category, without raw exceptions or user/destination data.
+
+A single corrective upload to the **same project** was rejected with code
+8000119. Configuration and the production deployment ID were unchanged afterward.
+The changes are prepared and locally tested, but have not reached the live
+deployment. Provider review remains necessary; no replacement project was created.
+
 Status: **final release blocked by provider enforcement and unresolved Worker execution failure**. The existing Pages application passed a live transport test, but its next deployment was explicitly rejected with Cloudflare code **8000119**: “Your Pages project has been blocked. Contact abusereply@cloudflare.com.” Further deployment attempts stopped after that response; no final release is claimed.
 
 | Check | Result |
