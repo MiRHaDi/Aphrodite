@@ -8,6 +8,11 @@ import {deployRender} from '../installer/render.mjs';
 let directory;
 afterEach(async()=>{vi.unstubAllGlobals();if(directory)await rm(directory,{recursive:true,force:true});});
 describe('installer adapters',()=>{
+ it('stops immediately on a Cloudflare runtime exception instead of repeating health checks',async()=>{
+  const fetcher=vi.fn(async()=>new Response('error code: 1101',{status:500}));vi.stubGlobal('fetch',fetcher);
+  await expect(verify('https://test.example',configuration({}),{attempts:24,delay:0})).rejects.toThrow('1101');
+  expect(fetcher).toHaveBeenCalledTimes(1);
+ });
  it('reports a provider block without exposing CLI secrets',async()=>{
   try{await run(process.execPath,['-e',"process.stderr.write('fake-password code: 8000119');process.exit(1)"]);throw Error('Expected failure');}catch(error){expect(error.message).toContain('8000119');expect(error.message).not.toContain('fake-password');}
  });
@@ -30,7 +35,7 @@ describe('installer adapters',()=>{
  });
  it('does not echo provider error bodies',async()=>{
   vi.stubGlobal('fetch',vi.fn(async()=>new Response(JSON.stringify({message:'secret-provider-token'}),{status:403})));
-  await expect(jsonRequest('https://api.example.test',{token:'secret-provider-token'})).rejects.toThrow('Provider request failed (403)');
+  await expect(jsonRequest('https://api.example.test',{token:'secret-provider-token'})).rejects.toThrow('HTTP 403');
  });
  it('provisions D1 and uploads secret bindings separately from program code',async()=>{
   directory=await mkdtemp(join(tmpdir(),'aphrodite-installer-'));await mkdir(join(directory,'migrations'));await writeFile(join(directory,'migrations/0001.sql'),'SELECT 1;');

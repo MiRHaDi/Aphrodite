@@ -5,16 +5,23 @@ afterEach(()=>{setProgressReporter(undefined);vi.useRealTimers();vi.unstubAllGlo
 it('reports waiting, completion and stops its timer',async()=>{
  vi.useFakeTimers();const events=[];setProgressReporter(e=>events.push(e));
  let finish;const pending=activity('Upload',()=>new Promise(r=>finish=r));
- await vi.advanceTimersByTimeAsync(10000);expect(events.filter(e=>e.level==='waiting')).toHaveLength(2);
+ await vi.advanceTimersByTimeAsync(29900);expect(events.filter(e=>e.level==='waiting')).toHaveLength(0);expect(events.some(e=>e.level==='tick')).toBe(true);await vi.advanceTimersByTimeAsync(200);expect(events.filter(e=>e.level==='waiting')).toHaveLength(1);
  finish(42);expect(await pending).toBe(42);expect(events.at(-1).level).toBe('done');
  const count=events.length;await vi.advanceTimersByTimeAsync(10000);expect(events).toHaveLength(count);
- expect(events.map(event=>event.sequence)).toEqual(events.map((_,i)=>i+1));
+ const lines=events.filter(event=>event.level!=='tick');expect(lines.map(event=>event.sequence)).toEqual(lines.map((_,i)=>i+1));
 });
 it('uses a single sequence across phase and nested operation events',async()=>{
  const events=[];setProgressReporter(e=>events.push(e));
  report('Configure','step');await activity('Outer',async()=>{report('Details');await activity('Inner',async()=>{});});
  expect(events.map(e=>e.sequence)).toEqual([1,2,3,4,5,6]);
  setProgressReporter(e=>events.push(e));report('New session');expect(events.at(-1).sequence).toBe(1);
+});
+it('suppresses repeated status lines for thirty seconds',async()=>{
+ vi.useFakeTimers();const events=[];setProgressReporter(e=>events.push(e));
+ const {status}=await import('../installer/progress.mjs');status('health','HTTP 500');
+ for(let i=0;i<5;i++){await vi.advanceTimersByTimeAsync(5000);status('health','HTTP 500');}
+ expect(events).toHaveLength(1);await vi.advanceTimersByTimeAsync(5000);status('health','HTTP 500');expect(events).toHaveLength(2);
+ status('health','HTTP 200');expect(events).toHaveLength(3);
 });
 it('reports API status and failure without leaking credentials or response contents',async()=>{
  const events=[];setProgressReporter(e=>events.push(e));

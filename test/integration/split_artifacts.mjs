@@ -21,7 +21,9 @@ try{
  const original=await api('/api/native/users/preserved-user');
  const nodes=await api('/api/nodes');assert.equal(nodes.nodes.length,2);assert.ok(nodes.nodes.every(n=>n.kind==='connection'));
  const overview=await api('/api/overview');assert.equal(overview.nodes,2);assert.equal(overview.users,1);
- const sub=await c.fetch('https://control.example'+created.subscriptionPath+'?format=raw');assert.equal(sub.status,200);const links=await sub.text();assert.ok(links.includes('one.example')&&links.includes('two.example'));assert.ok(!links.includes('@control.example'));
+ const health=await api('/api/deployment/health');assert.equal(health.ok,true);
+ await api('/api/deployment/connections',{endpoints:[{address:'third.example',sni:'third.example',host:'third.example'}]});
+ const sub=await c.fetch('https://control.example'+created.subscriptionPath+'?format=raw');assert.equal(sub.status,200);const links=await sub.text();assert.ok(links.includes('one.example')&&links.includes('two.example')&&links.includes('third.example'));assert.ok(!links.includes('@control.example'));
  assert.equal((await c.fetch('https://control.example/edge/native',{headers:{Upgrade:'websocket'}})).status,404);
  assert.equal((await a.fetch('https://one.example/private-management-test')).status,404);
  assert.equal((await a.fetch('https://one.example'+created.subscriptionPath)).status,404);

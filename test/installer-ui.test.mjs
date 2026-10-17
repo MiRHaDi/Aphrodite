@@ -4,6 +4,14 @@ import {interfaceFor,cloudflareTokenUrl} from '../installer/ui.mjs';
 import {resultCard,resultHtml} from '../installer/result-card.mjs';
 afterEach(()=>vi.restoreAllMocks());
 describe('installer user experience',()=>{
+ it('updates loading in place and clears it before a real log line',()=>{
+  let text='';const output=new Writable({write(chunk,enc,done){text+=chunk;done()}});output.isTTY=true;
+  const ui=interfaceFor({output});
+  for(let i=0;i<5;i++)ui.detail({level:'tick',message:'Waiting 5s',time:new Date(),sequence:1});
+  expect(text).not.toContain('\n');expect(text).toContain('\r');
+  ui.detail({level:'done',message:'Upload completed',time:new Date(),sequence:2});expect(text.match(/\n/g)).toHaveLength(1);
+  expect(text).toContain('[002]');ui.close();output.destroy();
+ });
  it('selects a lettered destination directly with one Enter and no language prompt',async()=>{
   const input=new PassThrough();input.isTTY=true;let text='';const output=new Writable({write(chunk,enc,done){text+=chunk;done()}});output.isTTY=true;
   const ui=interfaceFor({input,output});

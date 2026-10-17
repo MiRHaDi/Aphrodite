@@ -5,6 +5,16 @@ on:
 permissions:
   contents: read
 jobs:
+  windows-installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts --no-fund --no-audit
+      - run: node node_modules/vitest/vitest.mjs run test/installer-session.test.mjs test/installer-resume.test.mjs test/installer-wizard.test.mjs test/installer-ui.test.mjs test/english-installer.test.mjs
   test:
     runs-on: ubuntu-latest
     steps:

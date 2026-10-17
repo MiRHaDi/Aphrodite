@@ -1,6 +1,7 @@
 param([Parameter(ValueFromRemainingArguments=$true)][string[]]$InstallerArguments)
 $ErrorActionPreference='Stop'
 $ProgressPreference='Continue'
+try{
 Write-Host "`nAphrodite | Preparing a private installation" -ForegroundColor Cyan
 $installerCache=Join-Path $env:LOCALAPPDATA 'Aphrodite\installer'
 New-Item -ItemType Directory -Force -Path $installerCache | Out-Null
@@ -34,10 +35,12 @@ if(-not $installerRepo -or -not (Test-Path -LiteralPath (Join-Path $installerRep
 $env:PATH=$installerNodeDir+';'+$env:PATH
 Push-Location -LiteralPath $installerRepo
 try{
-  Write-Host '[BOOTSTRAP] Install dependencies (status every 5 seconds)' -ForegroundColor Cyan
+  Write-Host '[BOOTSTRAP] Install dependencies (live progress)' -ForegroundColor Cyan
   & $installerNode 'installer\bootstrap-dependencies.mjs' (Join-Path $installerNodeDir 'node_modules\npm\bin\npm-cli.js')
-  if($LASTEXITCODE -ne 0){throw 'Dependency installation failed'}
+  if($LASTEXITCODE -ne 0){Write-Host 'Dependencies could not be installed. Check the network and retry.' -ForegroundColor Red;[Environment]::ExitCode=$LASTEXITCODE;return}
   Write-Host '[BOOTSTRAP] Start guided build and deployment' -ForegroundColor Cyan
   & $installerNode 'installer\cli.mjs' @InstallerArguments
-  if($LASTEXITCODE -ne 0){throw 'Installation did not verify'}
+  if($LASTEXITCODE -ne 0){Write-Host 'Installation paused. Follow the recovery message above and run this installer again to resume.' -ForegroundColor Yellow;[Environment]::ExitCode=$LASTEXITCODE}
 }finally{Pop-Location}
+
+}catch{Write-Host ('Setup stopped: '+$_.Exception.Message) -ForegroundColor Red;Write-Host 'Resolve the issue and run the installer again. Saved installation settings are preserved.' -ForegroundColor Yellow;[Environment]::ExitCode=1}

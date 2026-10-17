@@ -31,7 +31,7 @@ These commands download and execute this repository's installer over HTTPS. You 
 
 **Destination > visible token > build > readiness checks > private management details**
 
-The installer is English-only. Choose a destination with A-G. Installation events use one continuous sequence with timestamps, operation details, results and five-second waiting updates. The application panel keeps its five languages. Provider tokens are visible while typed; they are not embedded in generated source or written to env files.
+The installer is English-only. Choose a destination with A-G. Installation events use one continuous sequence with timestamps, operation details, results and in-place loading and thirty-second repeated-status updates. The application panel keeps its five languages. Provider tokens are visible while typed; they are not embedded in generated source or written to env files.
 
 | Destination | Before you start |
 |---|---|
@@ -79,3 +79,7 @@ Node.js 24 required. Standard bundling/minification is used, with no provider-de
 Split Cloudflare installation is the new default: one management service and two
 connection services share one central ledger. See [architecture](docs/ARCHITECTURE.md)
 for provider permissions, existing-database reuse and migration limits.
+
+### Resume and grow
+
+Cloudflare installations remember choices and completed resources, with secrets held in the operating-system credential store. Rerun the installer to resume or choose Add account to attach separately credentialed Workers/Pages to the same subscription and accounting service. Waits animate on one line; unchanged messages are limited to once per 30 seconds. See the [resume guide](docs/INSTALLER.md#resume-and-add-cloudflare-accounts) for state storage, repair, supported platforms and legacy-installation limits.
