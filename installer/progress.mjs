@@ -1,38 +1,30 @@
-let reporter;
-const translations={
- 'Build management service':'ساخت سرویس مدیریت',
- 'Build connection service':'ساخت سرویس اتصال',
- 'Deploy management service':'استقرار سرویس مدیریت',
- 'Build and deploy separate services':'ساخت و استقرار سرویس‌های جداگانه',
- 'Build deployment bundle':'ساخت خروجی استقرار',
- 'Check deployment name':'بررسی آزاد بودن نام استقرار',
- 'Database configuration':'تنظیم دیتابیس',
- 'Upload Worker and bindings':'آپلود ورکر و تنظیم اتصال منابع',
- 'Create Pages project and bindings':'ساخت پیج و تنظیم اتصال منابع',
- 'Upload Pages and provider build':'آپلود پیج و ساخت در ارائه‌دهنده',
- 'Check Docker daemon':'بررسی سرویس داکر',
- 'Build container image':'ساخت ایمیج کانتینر',
- 'Start container and persistent volume':'راه‌اندازی کانتینر و فضای ذخیره‌سازی پایدار',
- 'Connect SSH and verify host fingerprint':'اتصال SSH و بررسی اثر انگشت سرور',
- 'Install remote prerequisites':'نصب پیش‌نیازهای سرور',
- 'Start remote service':'راه‌اندازی سرویس روی سرور',
- 'Railway CLI and source upload':'آماده‌سازی ابزار Railway و آپلود سورس',
- 'Create Render service and persistent disk':'ساخت سرویس Render و دیسک پایدار'
-};
-export function setProgressReporter(value){reporter=value;}
-export function report(en,fa,level='info'){reporter?.({en,fa:translations[fa]||fa,level,time:new Date()});}
-export async function activity(en,fa,operation,{interval=5000}={}){
- fa=translations[fa]||fa;
- const start=Date.now();report(en,fa,'start');
- const timer=setInterval(()=>report(en+' · still working ('+Math.floor((Date.now()-start)/1000)+'s)',fa+' · در حال انجام ('+Math.floor((Date.now()-start)/1000)+' ثانیه)','waiting'),interval);
+let reporter,sequence=0;
+export function setProgressReporter(value){reporter=value;sequence=0;}
+export function report(message,level='info'){
+ if(reporter)reporter({message,level,sequence:++sequence,time:new Date()});
+}
+export async function activity(message,operation,{interval=5000}={}){
+ const start=Date.now();report(message,'start');
+ const timer=setInterval(()=>report(message+' | still working | '+Math.floor((Date.now()-start)/1000)+'s elapsed','waiting'),interval);
  timer.unref?.();
- try{const value=await operation();report(en+' · completed ('+((Date.now()-start)/1000).toFixed(1)+'s)',fa+' · انجام شد ('+((Date.now()-start)/1000).toFixed(1)+' ثانیه)','done');return value;}
- catch(error){report(en+' · failed',fa+' · ناموفق','error');throw error;}
+ try{const value=await operation();report(message+' | completed in '+((Date.now()-start)/1000).toFixed(1)+'s','done');return value;}
+ catch(error){report(message+' | failed after '+((Date.now()-start)/1000).toFixed(1)+'s','error');throw error;}
  finally{clearInterval(timer);}
 }
-// Fixed categories only: never log URL paths, queries, bodies or credentials.
+// Log fixed operation categories, never URL paths, queries, bodies or credentials.
 export function requestLabel(url,method){
- const path=new URL(url).pathname;
- const kind=path.includes('/dns_records')?'DNS':path.includes('/d1/')?'D1':path.includes('/pages/')?'Pages':path.includes('/workers/')?'Workers':'provider';
- return method+' '+kind+' API';
+ const {hostname,pathname:path}=new URL(url);
+ if(hostname==='api.cloudflare.com'){
+  if(path.endsWith('/accounts'))return 'List accessible Cloudflare accounts';
+  if(path.endsWith('/d1/database'))return 'Create D1 database';
+  if(path.includes('/d1/')&&path.endsWith('/query'))return 'Execute D1 database query';
+  if(path.endsWith('/workers/subdomain'))return 'Read Workers account subdomain';
+  if(path.includes('/workers/scripts/')&&path.endsWith('/subdomain'))return 'Enable Workers public subdomain';
+  if(path.endsWith('/workers/domains'))return 'Configure Worker custom domain';
+  if(path.includes('/dns_records'))return method==='GET'?'Check existing DNS records':'Create DNS record';
+  if(path.includes('/pages/projects')&&path.endsWith('/domains'))return 'Configure Pages custom domain';
+  if(path.endsWith('/pages/projects')&&method==='POST')return 'Create Pages project and bindings';
+ }
+ const provider=hostname==='backboard.railway.com'?'Railway':hostname==='api.render.com'?'Render':hostname==='api.github.com'?'GitHub':'Provider';
+ return method+' '+provider+' API request';
 }
