@@ -1,3 +1,4 @@
+import {activity,report} from './progress.mjs';
 import {mkdir,writeFile,chmod,access} from 'node:fs/promises';
 import {join} from 'node:path';
 import {homedir} from 'node:os';
@@ -12,9 +13,9 @@ export async function railwayBinary(){
   if(!asset?.digest?.startsWith('sha256:'))throw Error('A verified Railway CLI release asset is unavailable');
   const directory=join(process.env.LOCALAPPDATA||join(homedir(),'.cache'),'Aphrodite','tools',release.tag_name);
   const binary=join(directory,process.platform==='win32'?'railway.exe':'railway');
-  try{await access(binary);return binary;}catch{}
-  const response=await fetch(asset.browser_download_url,{signal:AbortSignal.timeout(120000)});if(!response.ok)throw Error('Railway CLI download failed');
-  const archive=Buffer.from(await response.arrayBuffer());if(createHash('sha256').update(archive).digest('hex')!==asset.digest.slice(7))throw Error('Railway CLI checksum mismatch');
+  try{await access(binary);report('Use verified cached Railway CLI');return binary;}catch{}
+  const archive=await activity('Download Railway CLI release',async()=>{const response=await fetch(asset.browser_download_url,{signal:AbortSignal.timeout(120000)});report('CLI download | HTTP '+response.status);if(!response.ok)throw Error('Railway CLI download failed');return Buffer.from(await response.arrayBuffer());});
+  report('Verify CLI SHA256 and extract executable ('+archive.length+' bytes)');if(createHash('sha256').update(archive).digest('hex')!==asset.digest.slice(7))throw Error('Railway CLI checksum mismatch');
   const tar=gunzipSync(archive,{maxOutputLength:128*1024*1024});let executable;
   for(let offset=0;offset+512<=tar.length;){const header=tar.subarray(offset,offset+512);if(header.every(b=>b===0))break;const filename=header.subarray(0,100).toString().split('\0')[0],size=parseInt(header.subarray(124,136).toString().replace(/\0/g,'').trim(),8);if(!Number.isSafeInteger(size)||size<0||size>128*1024*1024)throw Error('Invalid CLI archive');offset+=512;if(['railway','railway.exe','./railway','./railway.exe'].includes(filename)&&[0,48].includes(header[156]))executable=tar.subarray(offset,offset+size);offset+=Math.ceil(size/512)*512;}
   if(!executable?.length)throw Error('CLI archive did not contain the expected binary');

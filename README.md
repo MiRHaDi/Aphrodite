@@ -29,9 +29,9 @@ These commands download and execute this repository's installer over HTTPS. You 
 
 ### A clear setup
 
-**Language → destination → visible token → build → readiness checks → private management details**
+**Destination > visible token > build > readiness checks > private management details**
 
-Choose English or Persian and a menu number. The application interface also supports Chinese, Russian and Arabic. Provider tokens are visible while typed; they are not embedded in generated source or written to env files.
+The installer is English-only. Choose a destination with A-G. Installation events use one continuous sequence with timestamps, operation details, results and five-second waiting updates. The application panel keeps its five languages. Provider tokens are visible while typed; they are not embedded in generated source or written to env files.
 
 | Destination | Before you start |
 |---|---|

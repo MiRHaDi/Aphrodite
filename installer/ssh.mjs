@@ -1,4 +1,4 @@
-import {report} from './progress.mjs';
+import {activity,report} from './progress.mjs';
 import {Client} from 'ssh2';
 import {readFile,readdir,cp} from 'node:fs/promises';
 import {join} from 'node:path';
@@ -9,14 +9,14 @@ export async function deploySSH(options,env,artifact){
   if(!/^[a-z_][a-z0-9_-]*$/i.test(username))throw Error('Invalid SSH username');
   const expected=required(options.fingerprint,'--fingerprint SHA256:... (verify against the server console)');
   const connection=new Client();
-  const exec=(command,input)=>new Promise((resolve,reject)=>connection.exec(command,{pty:false},(error,stream)=>{if(error)return reject(Error('SSH execution failed'));let output='';stream.on('data',data=>{output+=data;if(output.length>65536)output=output.slice(-65536);});stream.stderr.resume();stream.on('close',code=>code===0?resolve(output):reject(Error('Remote command failed (exit '+code+')')));stream.end(input);}));
+  const exec=(command,input)=>activity('Execute remote setup operation',()=>new Promise((resolve,reject)=>connection.exec(command,{pty:false},(error,stream)=>{if(error)return reject(Error('SSH execution failed'));let output='';stream.on('data',data=>{output+=data;if(output.length>65536)output=output.slice(-65536);});stream.stderr.resume();stream.on('close',code=>code===0?resolve(output):reject(Error('Remote command failed (exit '+code+')')));stream.end(input);})));
   const privileged=command=>username==='root'?command:'sudo -n '+command;
   const privateKey=options.key?await readFile(options.key):undefined;
-  report('Connect SSH and verify host fingerprint','Connect SSH and verify host fingerprint');
+  report('Connect SSH and verify host fingerprint');
   await new Promise((resolve,reject)=>{connection.once('ready',resolve).once('error',()=>reject(Error('SSH authentication or host verification failed'))).connect({host,port:Number(options.sshPort||22),username,password:options.password,privateKey,readyTimeout:20000,hostVerifier:key=>'SHA256:'+createHash('sha256').update(key).digest('base64').replace(/=+$/,'')===expected});});
   try{
     const base='/opt/aphrodite/'+options.name,release=base+'/releases/'+artifact.manifest.buildId;
-    report('Install remote prerequisites and prepare release directory','Install remote prerequisites');
+    report('Install remote prerequisites and prepare release directory');
     await exec(privileged('sh -s'),`set -eu
 if ! command -v docker >/dev/null 2>&1; then
   test -f /etc/debian_version || { echo 'Automatic prerequisites currently require Debian/Ubuntu'; exit 1; }
@@ -30,7 +30,7 @@ install -d -m 700 '${release}/migrations'
 chown -R '${username}' '${release}'
 `);
     const sftp=await new Promise((resolve,reject)=>connection.sftp((e,s)=>e?reject(Error('SFTP unavailable')):resolve(s)));
-    const upload=(local,remote)=>{report('Upload '+local.split(/[\\/]/).at(-1),'Upload '+local.split(/[\\/]/).at(-1));return new Promise((resolve,reject)=>sftp.fastPut(local,remote,e=>e?reject(Error('Upload failed')):resolve()));};
+    const upload=(local,remote)=>activity('Upload '+local.split(/[\\/]/).at(-1),()=>new Promise((resolve,reject)=>sftp.fastPut(local,remote,e=>e?reject(Error('Upload failed')):resolve())));
     await cp(join(root,'deploy/Dockerfile.prebuilt'),join(artifact.directory,'Dockerfile'));
     for(const name of ['server.mjs','manifest.json','Dockerfile','LICENSE','THIRD_PARTY_NOTICES.md'])await upload(join(artifact.directory,name),release+'/'+name);
     for(const name of await readdir(join(artifact.directory,'migrations')))await upload(join(artifact.directory,'migrations',name),release+'/migrations/'+name);
@@ -39,7 +39,7 @@ chown -R '${username}' '${release}'
     await new Promise((resolve,reject)=>{const stream=sftp.createWriteStream(release+'/install.py',{mode:0o700});stream.on('error',()=>reject(Error('Helper upload failed'))).on('close',resolve);stream.end(helper);});
     env.TRUST_PROXY=domain?'true':'false';
     const port=Number(options.port||8080);if(!Number.isInteger(port)||port<1||port>65535)throw Error('Invalid port');
-    report('Build and start remote service with persistent storage','Start remote service');
+    report('Build and start remote service with persistent storage');
     await exec(privileged('python3 '+release+'/install.py'),JSON.stringify({release,name:options.name,env,domain,port}));
     const url=domain?'https://'+domain:'http://127.0.0.1:'+port;
     if(domain)await verify(url,env,{attempts:60,delay:5000});
