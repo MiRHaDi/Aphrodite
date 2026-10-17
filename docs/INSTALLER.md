@@ -4,7 +4,7 @@ Current live validation and final-release blockers: [Cloudflare validation](CLOU
 
 For deployment-network failures the installer can resolve the public hostname using Google's HTTPS DNS endpoint at 8.8.8.8. It preserves hostname/SNI and normal certificate verification; private paths, tokens and request headers are not sent to DNS. HTTP errors are returned without trying other IPs. Cloudflare block code 8000119 stops deployment and requires provider review.
 
-Extract the source package and run `./install.ps1 --provider workers` in PowerShell, or `bash install.sh --provider pages` on Linux/macOS. The bootstrap downloads official Node 24 with SHA256 verification and installs locked dependencies. Existing Node users can run `node installer/cli.mjs`. Tokens are entered with hidden input; generated administrator credentials are printed once in an interactive terminal. No additional windows are opened.
+Extract the source package and run `./install.ps1 --provider workers` in PowerShell, or `bash install.sh --provider pages` on Linux/macOS. The bootstrap downloads official Node 24 with SHA256 verification and installs locked dependencies. Existing Node users can run `node installer/cli.mjs`. Provider tokens are entered with visible input; generated administrator credentials are printed once in an interactive terminal. No additional windows are opened.
 
 Providers: `workers`, `pages`, `railway`, `render`, `docker`, `vps`, `bundle`. Use `--preview` for a build without provider mutations or credentials. Separate complete installations have independent accounting; connection nodes within a split installation share its central ledger.
 
@@ -41,3 +41,16 @@ migrations or rewriting user records. It does not overwrite an existing service
 or DNS. Preserve the old subscription hostname and key tables during a reviewed
 cutover. Provider blocks must be resolved before live deployment. See
 [architecture and migration limits](ARCHITECTURE.md).
+
+## Token entry and clickable results
+
+The Cloudflare token-creation link is printed before the token prompt. Provider
+API tokens are visible while typed and require one Enter; SSH passwords remain
+hidden. The wizard reuses one readline interface across consecutive prompts.
+Interactive results use terminal hyperlinks where supported, with ordinary URL
+fallbacks. A random loopback-only HTTP result page offers clickable management and
+connection links and a button to copy the administrator token. It stores no file,
+loads no external assets and expires after 10 minutes or when the installer is
+closed. Clipboard support depends on browser permission; if blocked, the token is
+selected for Ctrl+C. The terminal stays running while this local page is available;
+Ctrl+C closes it. Neither a browser nor a new console is opened automatically.
