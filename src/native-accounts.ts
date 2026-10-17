@@ -3,8 +3,13 @@ import { nativeDefaults, parseNativeSettings, settingsFor, type NativeAccount } 
 import type { Env } from './types';
 import { d1Ledger } from './native-ledger';
 import qrcode from 'qrcode-generator';
+import {edgeControl} from './edge-control-client';
 const identityCache=new Map<string,{value:NativeAccount|null;expires:number}>();
-export async function nativeIdentity(env:Env,uuid:string):Promise<NativeAccount|null>{
+export async function nativeIdentity(env:Env,uuid:string,fresh=false):Promise<NativeAccount|null>{
+  if(env.DEPLOYMENT_ROLE==='connection'){
+    const response=await edgeControl(env,{action:'identity',uuid});return response.ok?response.json() as Promise<NativeAccount>:null;
+  }
+  if(fresh)return env.DB.prepare('SELECT * FROM native_accounts WHERE uuid=? LIMIT 1').bind(uuid).first<NativeAccount>();
   const saved=identityCache.get(uuid);if(saved&&saved.expires>Date.now())return saved.value;
   const value=await env.DB.prepare('SELECT * FROM native_accounts WHERE uuid=? LIMIT 1').bind(uuid).first<NativeAccount>();
   if(identityCache.size>=2048)identityCache.delete(identityCache.keys().next().value!);identityCache.set(uuid,{value,expires:Date.now()+15000});return value;
@@ -16,6 +21,7 @@ export async function findNative(env: Env, username: string): Promise<NativeAcco
   return env.DB.prepare('SELECT * FROM native_accounts WHERE username = ? COLLATE NOCASE LIMIT 1').bind(username).first<NativeAccount>();
 }
 export async function ledger(env: Env, account: NativeAccount, path = '/status', extra: Record<string, unknown> = {}): Promise<Response> {
+  if(env.DEPLOYMENT_ROLE==='connection')return edgeControl(env,{action:path,uuid:account.uuid,extra});
   if (!env.ACCOUNT_STATE) return d1Ledger(env,account,path,extra);
   const stub = env.ACCOUNT_STATE.get(env.ACCOUNT_STATE.idFromName(account.username.toLowerCase()));
   return stub.fetch('https://account.internal'+path, { method: 'POST', body: JSON.stringify({ account, ...extra }), headers: { 'content-type': 'application/json' } });

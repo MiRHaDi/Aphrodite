@@ -3,9 +3,14 @@ import { validHost } from './native-types';
 const dnsCache = new Map<string,{value:string;expires:number}>();
 export function publicAddress(host: string): boolean {
   const ip=host.replace(/^\[|\]$/g,'').toLowerCase();
-  if(ip.includes(':'))return !['::','::1'].includes(ip)&&!/^f[cd]|^fe[89ab]|^ff|^::ffff:/i.test(ip);
+  if(ip.includes(':')){
+    // Only global unicast; reject mapped, translation and transition addresses.
+    try{const canonical=new URL('https://['+ip+']/').hostname.slice(1,-1);
+      return /^[23][0-9a-f]{3}:/.test(canonical)&&!/^2001:(?::|0:|db8:)|^2002:|^3fff:/i.test(canonical);
+    }catch{return false}
+  }
   if(!/^\d{1,3}(?:\.\d{1,3}){3}$/.test(ip))return false;
-  const a=ip.split('.').map(Number);return a.every(n=>n<=255)&&a[0]!==0&&a[0]!==10&&a[0]!==127&&a[0]!<224&&!(a[0]===169&&a[1]===254)&&!(a[0]===172&&a[1]!>=16&&a[1]!<=31)&&!(a[0]===192&&a[1]===168)&&!(a[0]===100&&a[1]!>=64&&a[1]!<=127);
+  const a=ip.split('.').map(Number);return a.every(n=>n<=255)&&a[0]!==0&&a[0]!==10&&a[0]!==127&&a[0]!<224&&!(a[0]===169&&a[1]===254)&&!(a[0]===172&&a[1]!>=16&&a[1]!<=31)&&!(a[0]===192&&(a[1]===168||(a[1]===0&&(a[2]===0||a[2]===2))||(a[1]===88&&a[2]===99)))&&!(a[0]===198&&(a[1]===18||a[1]===19||(a[1]===51&&a[2]===100)))&&!(a[0]===203&&a[1]===0&&a[2]===113)&&!(a[0]===100&&a[1]!>=64&&a[1]!<=127);
 }
 export function resolver(adult=false,ads=false):string{return ads?(adult?'https://family.adguard-dns.com/dns-query':'https://dns.adguard-dns.com/dns-query'):adult?'https://family.cloudflare-dns.com/dns-query':'https://cloudflare-dns.com/dns-query'}
 export async function resolvePublic(host:string,doh=resolver()):Promise<string>{
@@ -45,6 +50,7 @@ async function dial(host:string,port:number,tls=false,factory?:SocketFactory):Pr
 }
 export async function connectDestination(host:string,port:number,proxy?:string,doh?:string,factory?:SocketFactory):Promise<Connection>{
   if(!Number.isInteger(port)||port<1||port>65535)throw new Error('Invalid port');
+  if(port===25)throw new Error('SMTP delivery is not supported');
   const ip=await resolvePublic(host,doh);const remote=proxy?new URL(proxy):null;
   const socket=await dial(remote?.hostname||ip,remote?Number(remote.port||(remote.protocol==='https:'?443:remote.protocol==='http:'?8080:1080)):port,remote?.protocol==='https:',factory);
   const reader=socket.readable.getReader(),writer=socket.writable.getWriter(),buffer=new BufferedReader(reader),encoder=new TextEncoder();
@@ -56,17 +62,17 @@ export async function connectDestination(host:string,port:number,proxy?:string,d
       await writer.write(Uint8Array.of(5,1,user.length?2:0));const selected=await buffer.exact(2);
       if(selected[0]!==5||selected[1]!== (user.length?2:0))throw new Error('SOCKS authentication rejected');
       if(user.length){await writer.write(joinBytes(Uint8Array.of(1,user.length),user,Uint8Array.of(pass.length),pass));const auth=await buffer.exact(2);if(auth[1]!==0)throw new Error('SOCKS credentials rejected')}
-      const domain=encoder.encode(host);if(domain.length>255)throw new Error('Host too long');
+      const domain=encoder.encode(ip);if(domain.length>255)throw new Error('Host too long');
       await writer.write(joinBytes(Uint8Array.of(5,1,0,3,domain.length),domain,Uint8Array.of(port>>8,port&255)));
       const reply=await buffer.exact(4);if(reply[0]!==5||reply[1]!==0)throw new Error('SOCKS connection rejected');
       const length=reply[3]===1?4:reply[3]===4?16:reply[3]===3?(await buffer.exact(1))[0]!:0;
       if(!length)throw new Error('Invalid SOCKS address');await buffer.exact(length+2);
     }else if(remote?.protocol==='socks4:'){
       const user=encoder.encode(decodeURIComponent(remote.username));if(user.includes(0))throw new Error('Invalid username');
-      await writer.write(joinBytes(Uint8Array.of(4,1,port>>8,port&255,0,0,0,1),user,Uint8Array.of(0),encoder.encode(host),Uint8Array.of(0)));
+      await writer.write(joinBytes(Uint8Array.of(4,1,port>>8,port&255,0,0,0,1),user,Uint8Array.of(0),encoder.encode(ip),Uint8Array.of(0)));
       const reply=await buffer.exact(8);if(reply[1]!==90)throw new Error('SOCKS4 connection rejected');
     }else if(remote){
-      const authority=(host.includes(':')?'['+host+']':host)+':'+port;
+      const authority=(ip.includes(':')?'['+ip+']':ip)+':'+port;
       const auth=remote.username?'Proxy-Authorization: Basic '+btoa(decodeURIComponent(remote.username)+':'+decodeURIComponent(remote.password))+'\r\n':'';
       await writer.write(encoder.encode('CONNECT '+authority+' HTTP/1.1\r\nHost: '+authority+'\r\n'+auth+'\r\n'));
       let response='';while(!response.endsWith('\r\n\r\n')){response+=String.fromCharCode((await buffer.exact(1))[0]!);if(response.length>16384)throw new Error('Proxy response too large')}
@@ -89,3 +95,4 @@ export function parseVless(data:Uint8Array):VlessHeader|null{
   if(!port||!validHost(host))throw new Error('Invalid destination');if(command===2&&port!==53)throw new Error('Only DNS UDP is supported');
   return {uuid,host,port,udp:command===2,version:data[0]!,offset:i};
 }
+

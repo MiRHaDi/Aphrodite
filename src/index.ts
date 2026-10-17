@@ -10,7 +10,6 @@ import { capabilities, listPolicies, updatePolicy } from "./policies";
 import { bulkPolicies, exportBackup, importBackup } from "./admin-data";
 import { nativeAdmin, nativeEnabled } from './native-accounts';
 import { nativeBackup, nativeSettings, importNative, testNativeProxy } from './native-tools';
-import { nativeTransport } from './native-transport';
 import { cloudflareUsage } from './native-metrics';
 
 async function adminApi(request: Request, env: Env, pathname: string): Promise<Response> {
@@ -23,7 +22,7 @@ async function adminApi(request: Request, env: Env, pathname: string): Promise<R
   if (pathname === '/api/native/test-proxy' && request.method === 'POST') return testNativeProxy(request,env);
   const nativeMatch=pathname.match(/^\/api\/native\/users(?:\/([A-Za-z0-9_.-]{3,32})(?:\/(status|reset|rotate|qr))?)?$/);
   if(nativeMatch)return nativeAdmin(request,env,nativeMatch[1],nativeMatch[2]);
-  if (pathname === "/api/overview" && request.method === "GET") return overview(env);
+  if (pathname === "/api/overview" && request.method === "GET") return overview(env,request);
   if (pathname === "/api/users" && request.method === "GET") return users(env);
   if (pathname === "/api/users" && request.method === "POST") return createUser(request, env);
   if (pathname === "/api/policies" && request.method === "GET") return listPolicies(env);
@@ -31,7 +30,7 @@ async function adminApi(request: Request, env: Env, pathname: string): Promise<R
   const policyMatch = pathname.match(/^\/api\/policies\/([A-Za-z0-9_.-]{3,96})$/);
   if (policyMatch && request.method === "PUT") return updatePolicy(request, env, policyMatch[1]!);
   if (pathname === "/api/capabilities" && request.method === "GET") return capabilities(env);
-  if (pathname === "/api/nodes" && request.method === "GET") return nodes(env);
+  if (pathname === "/api/nodes" && request.method === "GET") return nodes(env,request);
   if (pathname === "/api/backup" && request.method === "GET") return exportBackup(env);
   if (pathname === "/api/backup/import" && request.method === "POST") return importBackup(request, env, new URL(request.url).searchParams.get("apply") === "1");
   return error("Not found", 404);
@@ -44,7 +43,6 @@ export default {
       return new Response(PANEL_HTML.replace("new URL(result.subscriptionPath,location.origin)", "new URL(result.subscriptionPath,"+JSON.stringify(env.PUBLIC_EDGE_HOST ? "https://"+env.PUBLIC_EDGE_HOST : url.origin)+")").replace("if(link.origin!==location.origin)throw new Error();", ""), { headers: { ...securityHeaders, "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-frame-options": "DENY", "content-security-policy": "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'" } });
     }
     if (url.pathname.startsWith("/api/")) return adminApi(request, env, url.pathname);
-    if (/^\/edge\/native(?:\/(smart|us|nl|sg|ir|de|turkey))?$/.test(url.pathname)) return nativeTransport(request,env,ctx);
     if (request.method !== "GET" && request.method !== "HEAD") return text("Method not allowed", 405, { allow: "GET, HEAD" });
     const username = usernameFromPath(url.pathname);
     if (username) return subscription(request, env, username, ctx);

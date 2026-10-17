@@ -29,9 +29,9 @@ These commands download and execute this repository's installer over HTTPS. You 
 
 ### A clear setup
 
-**Language → destination → hidden token → build → readiness checks → private management details**
+**Language → destination → visible token → build → readiness checks → private management details**
 
-Choose English or Persian and a menu number. The application interface also supports Chinese, Russian and Arabic. Tokens are not embedded in generated source or written to env files.
+Choose English or Persian and a menu number. The application interface also supports Chinese, Russian and Arabic. Provider tokens are visible while typed; they are not embedded in generated source or written to env files.
 
 | Destination | Before you start |
 |---|---|
@@ -75,3 +75,7 @@ node test/integration/portable_artifact.mjs workers
 Node.js 24 required. Standard bundling/minification is used, with no provider-detection evasion.
 
 [MIT license](LICENSE) · [Required dependency notices](THIRD_PARTY_NOTICES.md)
+
+Split Cloudflare installation is the new default: one management service and two
+connection services share one central ledger. See [architecture](docs/ARCHITECTURE.md)
+for provider permissions, existing-database reuse and migration limits.

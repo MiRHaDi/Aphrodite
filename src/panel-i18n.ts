@@ -46,7 +46,7 @@ export const translations = {
     "noResults": "No matching accounts.",
     "loading": "Loading your workspace…",
     "networkTitle": "Your network nodes",
-    "networkCopy": "Live connection status of the nodes configured in your network.",
+    "networkCopy": "Automatically detected local runtime and configured routes.",
     "available": "Available",
     "unavailable": "Unavailable",
     "protocols": "Connection options",
@@ -140,7 +140,14 @@ export const translations = {
     "importWarning": "Existing accounts are preserved. New connection credentials will be issued.",
     "actionConfirm": "Continue with this account action?",
     "quotaHint": "Unspent reservations are refunded when a connection closes. DNS filters require clients to use the provided DNS.",
-    "qrCode": "Subscription QR code"
+    "qrCode": "Subscription QR code",
+    "localNode": "This deployment",
+    "ready": "Ready",
+    "configured": "Configured",
+    "availableNodes": "Ready routes",
+    "nativeNetworkHint": "This route is detected automatically. Create an account to connect. Additional countries require real configured exits.",
+    "autoCountry": "Automatic exit",
+    "noCountries": "No separate country exits are configured."
   },
   "fa": {
     "brand": "افرودیت",
@@ -189,7 +196,7 @@ export const translations = {
     "noResults": "کاربری پیدا نشد.",
     "loading": "در حال دریافت اطلاعات…",
     "networkTitle": "نودهای شبکهٔ شما",
-    "networkCopy": "وضعیت زندهٔ اتصال نودهای تنظیم‌شده در شبکه.",
+    "networkCopy": "مسیر بومی خودکار و مسیرهای پیکربندی‌شده.",
     "available": "در دسترس",
     "unavailable": "خارج از دسترس",
     "protocols": "گزینه‌های اتصال",
@@ -283,7 +290,14 @@ export const translations = {
     "importWarning": "حساب‌های موجود حفظ می‌شوند. برای حساب‌های واردشده کلید اتصال تازه ساخته می‌شود.",
     "actionConfirm": "این عملیات روی حساب انجام شود؟",
     "quotaHint": "بخش مصرف‌نشدهٔ رزرو در پایان اتصال برمی‌گردد. فیلتر DNS به استفادهٔ کلاینت از DNS پیشنهادی وابسته است.",
-    "qrCode": "کد QR اشتراک"
+    "qrCode": "کد QR اشتراک",
+    "localNode": "مسیر همین استقرار",
+    "ready": "آماده",
+    "configured": "پیکربندی‌شده",
+    "availableNodes": "مسیرهای آماده",
+    "nativeNetworkHint": "این مسیر خودکار شناسایی شده است. برای اتصال یک حساب بسازید. کشورهای دیگر به خروجی واقعی و پیکربندی‌شده نیاز دارند.",
+    "autoCountry": "خروجی خودکار",
+    "noCountries": "خروجی کشور جداگانه‌ای پیکربندی نشده است."
   },
   "zh": {
     "brand": "阿芙罗狄忒",
@@ -332,7 +346,7 @@ export const translations = {
     "noResults": "未找到匹配账户。",
     "loading": "正在加载工作空间…",
     "networkTitle": "您的网络节点",
-    "networkCopy": "网络中已配置节点的实时连接状态。",
+    "networkCopy": "自动识别的本地运行环境与已配置路由。",
     "available": "可用",
     "unavailable": "不可用",
     "protocols": "连接选项",
@@ -426,7 +440,14 @@ export const translations = {
     "importWarning": "保留现有账户，为导入账户生成新的连接凭证。",
     "actionConfirm": "继续此账户操作？",
     "quotaHint": "连接关闭时返还未使用的预留流量。DNS 过滤需客户端使用所提供的 DNS。",
-    "qrCode": "订阅二维码"
+    "qrCode": "订阅二维码",
+    "localNode": "当前部署",
+    "ready": "就绪",
+    "configured": "已配置",
+    "availableNodes": "就绪路由",
+    "nativeNetworkHint": "此路由会自动识别。创建账户即可连接。其他国家需要实际配置的出口。",
+    "autoCountry": "自动出口",
+    "noCountries": "尚未配置独立国家出口。"
   },
   "ru": {
     "brand": "Афродита",
@@ -475,7 +496,7 @@ export const translations = {
     "noResults": "Совпадений не найдено.",
     "loading": "Загружаем пространство…",
     "networkTitle": "Узлы вашей сети",
-    "networkCopy": "Состояние подключения настроенных узлов в реальном времени.",
+    "networkCopy": "Автоматически определённая локальная среда и настроенные маршруты.",
     "available": "Доступен",
     "unavailable": "Недоступен",
     "protocols": "Варианты подключения",
@@ -569,7 +590,14 @@ export const translations = {
     "importWarning": "Существующие аккаунты сохраняются. Импортированным выдаются новые ключи.",
     "actionConfirm": "Выполнить действие с аккаунтом?",
     "quotaHint": "Неиспользованный резерв возвращается при закрытии подключения. DNS-фильтры требуют использования указанного DNS.",
-    "qrCode": "QR-код подписки"
+    "qrCode": "QR-код подписки",
+    "localNode": "Это развёртывание",
+    "ready": "Готово",
+    "configured": "Настроено",
+    "availableNodes": "Готовые маршруты",
+    "nativeNetworkHint": "Маршрут определяется автоматически. Создайте аккаунт для подключения. Другие страны требуют настроенных реальных выходов.",
+    "autoCountry": "Автоматический выход",
+    "noCountries": "Отдельные выходы по странам не настроены."
   },
   "ar": {
     "brand": "أفروديت",
@@ -618,7 +646,7 @@ export const translations = {
     "noResults": "لم يتم العثور على حسابات مطابقة.",
     "loading": "جارٍ تحميل مساحة الإدارة…",
     "networkTitle": "عقد شبكتك",
-    "networkCopy": "حالة الاتصال المباشرة للعقد المهيأة في شبكتك.",
+    "networkCopy": "بيئة التشغيل المحلية المكتشفة تلقائياً والمسارات المهيأة.",
     "available": "متاح",
     "unavailable": "غير متاح",
     "protocols": "خيارات الاتصال",
@@ -712,6 +740,13 @@ export const translations = {
     "importWarning": "تُحفظ الحسابات الحالية وتُصدر مفاتيح اتصال جديدة للحسابات المستوردة.",
     "actionConfirm": "هل تريد متابعة هذا الإجراء على الحساب؟",
     "quotaHint": "يُعاد الجزء غير المستخدم من الحجز عند إغلاق الاتصال. تتطلب التصفية استخدام DNS المقترح.",
-    "qrCode": "رمز QR للاشتراك"
+    "qrCode": "رمز QR للاشتراك",
+    "localNode": "هذا النشر",
+    "ready": "جاهز",
+    "configured": "تمت التهيئة",
+    "availableNodes": "المسارات الجاهزة",
+    "nativeNetworkHint": "يُكتشف هذا المسار تلقائياً. أنشئ حساباً للاتصال. تتطلب الدول الأخرى مخارج حقيقية مهيأة.",
+    "autoCountry": "خروج تلقائي",
+    "noCountries": "لم تُهيأ مخارج مستقلة للدول."
   }
 };
