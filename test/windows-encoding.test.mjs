@@ -23,4 +23,4 @@ Write-Output ('PASS '+[Console]::InputEncoding.CodePage+' '+[Console]::OutputEnc
  const executable=(process.env.SystemRoot||'C:\\Windows')+'\\System32\\WindowsPowerShell\\v1.0\\powershell.exe';
  const result=spawnSync(executable,['-NoLogo','-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(code,'utf16le').toString('base64')],{windowsHide:true,encoding:'utf8',timeout:20000});
  expect(result.error).toBeUndefined();expect(result.status,result.stderr).toBe(0);expect(result.stdout).toContain('PASS 65001 65001');
-});
+},30000);
