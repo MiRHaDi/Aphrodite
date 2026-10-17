@@ -54,3 +54,9 @@ loads no external assets and expires after 10 minutes or when the installer is
 closed. Clipboard support depends on browser permission; if blocked, the token is
 selected for Ctrl+C. The terminal stays running while this local page is available;
 Ctrl+C closes it. Neither a browser nor a new console is opened automatically.
+# Live installation progress
+
+Builds, database operations, uploads and readiness checks report timestamped status and results. Long deployment operations emit elapsed-time updates every five seconds. Bootstrap downloads show download progress; dependency installation also emits waiting updates. These messages do not claim a percentage or verified outbound connectivity.
+
+Compatible terminals display cyan clickable links, yellow token prompts/results, green success, yellow waiting and red failure messages. The private local result page provides the token-copy button. Progress excludes API credentials, private request URLs and raw deployment-tool output. `NO_COLOR` disables terminal styling; plain URLs remain visible.
+

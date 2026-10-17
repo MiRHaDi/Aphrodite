@@ -1,3 +1,4 @@
+import {activity,report} from './progress.mjs';
 import {randomBytes} from 'node:crypto';
 import {buildArtifact} from './build.mjs';
 import {deployCloudflare} from './cloudflare.mjs';
@@ -11,7 +12,7 @@ export function splitPlan(options){
 }
 export async function deploySplit(options,env,{preview=false,deploy=deployCloudflare}={}){
  const plan=splitPlan(options);
- const management=await buildArtifact('workers',{role:'management'}),connection=await buildArtifact('workers',{role:'connection'});
+ const management=await activity('Build management service','Build management service',()=>buildArtifact('workers',{role:'management'})),connection=await activity('Build connection service','Build connection service',()=>buildArtifact('workers',{role:'connection'}));
  if(preview)return {topology:'split',plan,artifacts:[management.manifest,connection.manifest],mutations:false};
  const token=options.token;let account=options.account;
  if(!account){const accounts=(await jsonRequest('https://api.cloudflare.com/client/v4/accounts',{token})).result;if(accounts.length!==1)throw Error('Specify --account');account=accounts[0].id;}
@@ -21,9 +22,11 @@ export async function deploySplit(options,env,{preview=false,deploy=deployCloudf
  const secret=randomBytes(32).toString('base64url'),controlPath=randomBytes(24).toString('hex');
  const centralEnv={...env,DEPLOYMENT_ROLE:'management',EDGE_CONTROL_TOKEN:secret,EDGE_CONTROL_PATH:controlPath,EDGE_ENDPOINTS_JSON:JSON.stringify(pool),CONNECTION_ENDPOINTS_JSON:JSON.stringify(pool)};
  // Deploy the control plane first and stop immediately on any provider restriction.
+ report('Deploy management service','Deploy management service');
  const central=await deploy({...options,...plan.management,account,databaseId:options.databaseId},centralEnv,management);
  const edges=[];
- for(const item of plan.connections){
+ for(const [index,item] of plan.connections.entries()){
+  report('Deploy connection '+(index+1)+'/'+plan.connections.length+' ('+item.provider+')','Deploy connection '+(index+1)+'/'+plan.connections.length);
   const routing=Object.fromEntries(['NATIVE_RELAY_UUID','TUNNEL_ROUTES_JSON'].filter(key=>env[key]).map(key=>[key,env[key]]));
   const edgeEnv={...routing,DEPLOYMENT_ROLE:'connection',NATIVE_ENABLED:'true',EDGE_CONTROL_URL:central.url+'/'+controlPath,EDGE_CONTROL_TOKEN:secret,EDGE_PROBE_PATH:randomBytes(24).toString('hex')};
   edges.push(await deploy({...options,...item,account,domain:undefined,zone:undefined,databaseId:undefined},edgeEnv,connection));
