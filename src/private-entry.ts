@@ -60,6 +60,12 @@ export function privateApplication(application:Application):{fetch(request:Reque
       try {
         const username=await subscriptionOwner(request,env);if(!username)return blank();
         if(/^\/[a-f0-9]{64}$/.test(url.pathname))url.searchParams.set('token',url.pathname.slice(1));
+        else if(!url.searchParams.has('token')){
+          // subscriptionOwner has already checked legacy_allowed. Pass its existing
+          // credential internally so migrated native accounts accept frozen links.
+          const row=await env.DB.prepare('SELECT token FROM subscription_keys WHERE username=? COLLATE NOCASE').bind(username).first<{token:string}>();
+          if(!row?.token)return blank();url.searchParams.set('token',row.token);
+        }
         url.pathname='/feed/'+encodeURIComponent(username);
         const response=await application.fetch(new Request(url,request),env,ctx);return response.ok?response:blank();
       }catch{return blank();}

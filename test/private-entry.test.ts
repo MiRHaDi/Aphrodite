@@ -21,4 +21,20 @@ describe('private entry points',()=>{
   expect(await (await app.fetch(new Request('https://example.test/feed/user'),env,ctx)).text()).toBe('');
   expect(managementPrefix({ADMIN_PATH:'panel'} as Env)).toBeNull();
  });
+ it('passes the original key internally for migrated legacy links without rotating it',async()=>{
+  const key='b'.repeat(64);const queries:string[]=[];
+  const DB={prepare:(sql:string)=>{queries.push(sql);return {bind:()=>({first:async()=>({username:'iust',token:key,legacy_allowed:1})})}}};
+  const handler=vi.fn((request:Request)=>new Response(new URL(request.url).searchParams.get('token')===key?'subscription':'denied'));
+  const response=await privateApplication({fetch:handler}).fetch(new Request('https://example.test/feed/iust?format=raw'),{...env,DB} as unknown as Env,ctx);
+  expect(await response.text()).toBe('subscription');
+  const forwarded=new URL(handler.mock.calls[0]![0].url);expect(forwarded.searchParams.get('format')).toBe('raw');
+  expect(queries.every(sql=>sql.startsWith('SELECT '))).toBe(true);
+ });
+ it('does not give token-only users or invalid supplied tokens legacy access',async()=>{
+  const handler=vi.fn(()=>new Response('private'));
+  const DB={prepare:()=>({bind:()=>({first:async()=>({username:'new-user',token:'c'.repeat(64),legacy_allowed:0})})})};
+  const app=privateApplication({fetch:handler}),settings={...env,DB} as unknown as Env;
+  for(const path of ['/feed/new-user','/feed/new-user?token=wrong'])expect((await app.fetch(new Request('https://example.test'+path),settings,ctx)).status).toBe(404);
+  expect(handler).not.toHaveBeenCalled();
+ });
 });
