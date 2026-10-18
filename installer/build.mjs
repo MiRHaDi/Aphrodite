@@ -10,7 +10,14 @@ export async function compileSource(source){
   const result=await minify(source,{minify:true,format:'esm',target:'es2022',legalComments:'eof'});
   return {code:result.code,id:randomBytes(12).toString('hex')};
 }
-export async function buildArtifact(platform,{out,transform=true,role='standalone'}={}){
+export async function buildArtifact(platform,{out,transform=true,role='standalone',profile='current'}={}){
+  if(!['current','working-baseline'].includes(profile))throw Error('Invalid build profile');
+  if(profile==='working-baseline'){
+    if(!['workers','pages'].includes(platform)||role!=='standalone')throw Error('Working baseline requires a standalone Workers or Pages bundle');
+    report('Reproduce verified working source and overlay current panel UI');
+    const {buildWorkingBaseline}=await import('./working-baseline.mjs');
+    const artifact=await buildWorkingBaseline({out});report('Artifact ready | verified reference | offline UI-only candidate','done');return artifact;
+  }
   if(!['standalone','management','connection'].includes(role))throw Error('Invalid deployment role');
   if(platform==='node'&&role!=='standalone')throw Error('Split deployment roles currently require Workers or Pages');
   const node=platform==='node';

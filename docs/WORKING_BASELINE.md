@@ -23,20 +23,32 @@ It is not the default installer, whose split deployment remains unchanged.
 
 ## Local commands
 
-Use a clone containing the pinned commit (shallow checkouts may need that history)
-and the repository's installed dependencies:
+The byte-verified source snapshot is included in `baseline/working`, so archive
+downloads and shallow clones need no Git history. Install the locked dependencies:
 
 ```bash
 npm run build:baseline-ui
 npm run test:baseline-ui
+node installer/cli.mjs --provider bundle --build-profile working-baseline --preview --no-save
 ```
 
-The output is `.artifacts/working-baseline-ui/worker.mjs` with a manifest stating
+The output includes the worker, pinned migrations, licenses and a manifest under
+`.artifacts/working-baseline-ui`, with the manifest stating
 `remoteDeploymentTested: false`. No provider API or deployment command is called.
 The comparison test uses two isolated local D1 databases with synthetic accounts.
 It checks private panel access, authentication, all five language choices,
 subscription identity/ports, native protocol acknowledgement, byte reservation and
 refund, and preservation of keys, expiry and account settings.
+
+The installer accepts this profile only for offline bundles or preview, with
+standalone topology. Its regular default remains split deployment. The source
+snapshot has per-file SHA-256 checksums and preserves exact bytes on Windows.
+CI runs the comparison on Windows and Linux and publishes a downloadable artifact
+with the verification manifest. These are local/emulated tests, not remote tests.
+
+نسخهٔ مرجع همراه پروژه است؛ دریافت ZIP هم برای ساخت آن کافی است و به تاریخچهٔ
+Git نیاز ندارد. دستور سوم خروجی کامل را بدون توکن و بدون تغییر منابع ابری می‌سازد.
+آزمون‌های CI روی ویندوز و لینوکس اجرا می‌شوند و بستهٔ خروجی قابل دریافت است.
 
 ## Promotion gate / شرط انتشار
 
