@@ -87,3 +87,9 @@ for provider permissions, existing-database reuse and migration limits.
 ### Resume and grow
 
 Cloudflare installations remember choices and completed resources, with secrets held in the operating-system credential store. Rerun the installer to resume or choose Add account to attach separately credentialed Workers/Pages to the same subscription and accounting service. Waits animate on one line; unchanged messages are limited to once per 30 seconds. See the [resume guide](docs/INSTALLER.md#resume-and-add-cloudflare-accounts) for state storage, repair, supported platforms and legacy-installation limits.
+
+## Project status and development
+
+[Working source reference](docs/SOURCE_BASELINE.md) · [Roadmap](docs/ROADMAP.md) · [Project memory (Persian)](PROJECT_MEMORY.md) · [Development journey (Persian)](PROJECT_JOURNEY.md) · [Continuity guide (Persian)](CONTINUITY.md)
+
+The pinned working source is included in `baseline/working`, with per-file checksums. The current UI candidate and planned backend features have separate validation stages; see the linked documents for their scope.

@@ -90,3 +90,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "iex (Invoke-RestMethod '
 ساخت اختیاری با هستهٔ سالم و رابط جدید، همراه با تست مقایسه‌ای و کنترل هش، در
 [راهنمای مبنای اتصال سالم](docs/WORKING_BASELINE.md) توضیح داده شده است.
 این خروجی مستقل برای آزمایش محلی است و سرویس فعال یا اطلاعات کاربران را جایگزین نمی‌کند.
+
+## وضعیت و مسیر توسعه
+
+[سورس مرجع سالم](docs/SOURCE_BASELINE.md) · [برنامهٔ آینده](docs/ROADMAP.md) · [حافظهٔ پروژه](PROJECT_MEMORY.md) · [مسیر توسعه](PROJECT_JOURNEY.md) · [راهنمای ادامه](CONTINUITY.md)
+
+سورس مرجع اتصال سالم در `baseline/working` همراه checksum فایل‌ها موجود است. وضعیت نسخهٔ کاندید و امکانات برنامه‌ریزی‌شده در اسناد بالا جداگانه مشخص شده است.
