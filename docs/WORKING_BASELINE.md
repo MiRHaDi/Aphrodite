@@ -1,10 +1,8 @@
 # Working connection baseline / مبنای اتصال سالم
 
-This is an **offline candidate**, not a production deployment or release. Existing
-Workers, Pages, DNS records, bindings, databases and user credentials are untouched.
+Build profile: `working-baseline`. Output: a local standalone bundle containing the reference backend and current panel. The default installer uses split deployment. Build and preview commands preserve existing services and data.
 
-این نسخه فقط برای ساخت و آزمایش محلی است؛ هنوز روی Cloudflare منتشر نشده است.
-هیچ تنظیم یا اطلاعاتی از سرویس فعال را تغییر نمی‌دهد.
+این پروفایل، backend مرجع و رابط فعلی را در یک بستهٔ محلی مستقل می‌سازد. نصب‌کنندهٔ پیش‌فرض از معماری جدا استفاده می‌کند. دستورهای ساخت و پیش‌نمایش، سرویس و دادهٔ موجود را تغییر نمی‌دهند.
 
 ## Reproduce first
 

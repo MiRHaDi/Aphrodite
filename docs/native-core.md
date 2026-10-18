@@ -1,4 +1,4 @@
-# Native core · 2.0 beta
+# Native core
 
 This independently implemented core provides D1-backed account management, byte reservations, request/concurrency/IP ceilings, expiry and scheduled quota resets; VLESS WebSocket framing and early data; bounded queues; SOCKS4/5 and HTTP(S) proxy negotiation; DNS-over-HTTPS and bounded TTL caches; address/port pools; four subscription formats; local QR generation; previewed legacy/native imports; and optional Cloudflare analytics. It uses the existing five-language workspace.
 
@@ -12,7 +12,7 @@ Native settings and account APIs are under `/api/native/`; they require the norm
 
 Local validation includes the real Workers runtime: VLESS WS authentication, D1 reservation/refund, concurrent connection denial, counters/reset, protected feed tokens, raw/Base64/Clash/Xray outputs and local QR. Unit coverage includes protocol parsing, fragmented proxy responses, private-address checks and account policies. External TCP, all proxy types, ISP performance and client fragmentation still need real-network validation.
 
-Cloudflare preview deployments returned runtime error 1101 in this run, including minimal capability probes. The cause is unresolved. Production remains on stable 1.5.1; this beta must not be described as fully activated. The Persian [capability matrix](native-core.fa.md) records implementation and validation boundaries.
+For dated deployment observations, see the [validation record](CLOUDFLARE_VALIDATION.md). Use the [verification guide](VERIFICATION.md) to distinguish protocol coverage from live network tests.
 
 Automatic execution of remote repository code, weak password hashing and a recovery endpoint accepting unrelated provider tokens were not reproduced. Existing token authentication and reviewed release/deployment workflows replace those mechanisms.
 

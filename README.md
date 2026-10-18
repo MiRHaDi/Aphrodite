@@ -60,9 +60,9 @@ Existing service names are refused. Failed provisioning can leave resources, and
 
 User-Agent detection is not universal; explicit formats are available. Country exits must actually exist. Surge is limited to compatible configured upstream protocols; VLESS-only native accounts do not provide Surge profiles. [Compatibility details](docs/CLIENT_PROFILES.md).
 
-## Validation status
+## Quality and testing
 
-**2.0.0-beta.2 is locally tested, not a verified final cloud release.** TypeScript, 77 tests and bundled Node/Miniflare integration passed. [Live Cloudflare findings](docs/CLOUDFLARE_VALIDATION.md) are recorded separately. Readiness verifies the private API and empty root, not every ISP. Use `npm run test:live` with credentials in the active process environment to test outbound transport.
+TypeScript checks, unit tests and local runtime integration cover authentication, subscriptions and accounting. See the [verification guide](docs/VERIFICATION.md) for commands and test scope, and the [roadmap](docs/ROADMAP.md) for upcoming work.
 
 ## Documentation and development
 
