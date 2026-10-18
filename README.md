@@ -5,6 +5,10 @@
 
 ## Install in one line
 
+For the independently verified working runtime with the current panel UI, see
+[Working baseline build](docs/WORKING_BASELINE.md). This optional profile builds an
+offline standalone candidate; it does not replace your live deployment.
+
 Copy **one** command into your existing terminal. The wizard prepares official Node 24 and locked dependencies, then asks for a destination and your token. No Git or Node installation is needed beforehand.
 
 **Bash · Linux / macOS** — curl is required:

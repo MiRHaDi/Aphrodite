@@ -15,6 +15,7 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts --no-fund --no-audit
       - run: node node_modules/vitest/vitest.mjs run test/installer-session.test.mjs test/installer-resume.test.mjs test/installer-wizard.test.mjs test/installer-ui.test.mjs test/english-installer.test.mjs
+      - run: npm run test:baseline-ui
   test:
     runs-on: ubuntu-latest
     steps:
@@ -30,3 +31,14 @@ jobs:
       - run: npm run pages:build
       - run: node test/integration/portable_artifact.mjs node
       - run: node test/integration/portable_artifact.mjs workers
+      - run: npm run test:baseline-ui
+      - uses: actions/upload-artifact@v4
+        with:
+          name: working-baseline-ui-local-tests
+          include-hidden-files: true
+          path: |
+            .artifacts/working-baseline-ui/worker.mjs
+            .artifacts/working-baseline-ui/manifest.json
+            .artifacts/working-baseline-ui/migrations
+            .artifacts/working-baseline-ui/LICENSE
+            .artifacts/working-baseline-ui/THIRD_PARTY_NOTICES.md

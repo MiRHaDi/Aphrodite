@@ -1,0 +1,2 @@
+# The baseline snapshot is byte-verified, including on Windows checkouts.
+/baseline/working/** -text
