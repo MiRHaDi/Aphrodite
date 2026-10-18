@@ -32,13 +32,13 @@ async function bundle(currentUi){
     return {contents,loader:'ts',resolveDir:dirname(args.path)};
   });}};
   const panel={name:'baseline-panel-html',setup(api){api.onLoad({filter:/[\\/]src[\\/]panel\.ts$/},async()=>{
-    const result=await build({entryPoints:[join(root,'src/panel.ts')],bundle:true,write:false,format:'esm',plugins:[snapshot]});
+    const result=await build({absWorkingDir:root,entryPoints:[join(root,'src/panel.ts')],bundle:true,write:false,format:'esm',plugins:[snapshot]});
     const module=await import('data:text/javascript;base64,'+Buffer.from(result.outputFiles[0].contents).toString('base64'));
     let html=module.PANEL_HTML;
     for(const match of html.matchAll(/<script>([\s\S]*?)<\/script>/g))html=html.replace(match[0],'<script>'+(await transform(match[1],{minify:true,target:'es2022'})).code+'</script>');
     return {contents:'export const PANEL_HTML='+JSON.stringify(html)+';',loader:'js'};
   });}};
-  const result=await build({entryPoints:[join(root,'src/direct-worker.ts')],bundle:true,write:false,format:'esm',platform:'browser',target:'es2022',external:['cloudflare:*'],plugins:[panel,snapshot]});
+  const result=await build({absWorkingDir:root,entryPoints:[join(root,'src/direct-worker.ts')],bundle:true,write:false,format:'esm',platform:'browser',target:'es2022',external:['cloudflare:*'],plugins:[panel,snapshot]});
   return (await transform(Buffer.from(result.outputFiles[0].contents).toString(),{minify:true,format:'esm',target:'es2022',legalComments:'eof'})).code;
 }
 /** Offline UI-only candidate. Never deploys or touches a provider or database. */
