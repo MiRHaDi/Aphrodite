@@ -17,6 +17,7 @@ Use `npm run test:live` with credentials supplied through the active process env
 
 ## Evidence and future work
 
+- [Verified local build: 2026-10-28](VERIFICATION_2026-10-28.md)
 - [Working source and reproducible build](WORKING_BASELINE.md)
 - [Dated Cloudflare observations](CLOUDFLARE_VALIDATION.md)
 - [Client format compatibility](CLIENT_PROFILES.md)
