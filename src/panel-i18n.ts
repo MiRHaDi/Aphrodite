@@ -147,7 +147,9 @@ export const translations = {
     "availableNodes": "Ready routes",
     "nativeNetworkHint": "This route is detected automatically. Create an account to connect. Additional countries require real configured exits.",
     "autoCountry": "Automatic exit",
-    "noCountries": "No separate country exits are configured."
+    "noCountries": "No separate country exits are configured.",
+    "addConnection": "Add existing connection",
+    "connectionAddHint": "Management only. Register an existing owned connection service; this does not deploy a service or verify outbound traffic. Blank SNI and Host use the address."
   },
   "fa": {
     "brand": "افرودیت",
@@ -297,7 +299,9 @@ export const translations = {
     "availableNodes": "مسیرهای آماده",
     "nativeNetworkHint": "این مسیر خودکار شناسایی شده است. برای اتصال یک حساب بسازید. کشورهای دیگر به خروجی واقعی و پیکربندی‌شده نیاز دارند.",
     "autoCountry": "خروجی خودکار",
-    "noCountries": "خروجی کشور جداگانه‌ای پیکربندی نشده است."
+    "noCountries": "خروجی کشور جداگانه‌ای پیکربندی نشده است.",
+    "addConnection": "افزودن گرهٔ موجود",
+    "connectionAddHint": "فقط بخش مدیریت: گرهٔ اتصال متعلق به خودتان را ثبت کنید. این کار سرویس تازه نصب نمی‌کند و عبور ترافیک را تأیید نمی‌کند. SNI و Host خالی از آدرس پر می‌شوند."
   },
   "zh": {
     "brand": "阿芙罗狄忒",
@@ -447,7 +451,9 @@ export const translations = {
     "availableNodes": "就绪路由",
     "nativeNetworkHint": "此路由会自动识别。创建账户即可连接。其他国家需要实际配置的出口。",
     "autoCountry": "自动出口",
-    "noCountries": "尚未配置独立国家出口。"
+    "noCountries": "尚未配置独立国家出口。",
+    "addConnection": "添加现有连接",
+    "connectionAddHint": "仅管理服务。注册已有的自有连接节点；不会部署服务或验证出站流量。空的 SNI 和 Host 使用地址。"
   },
   "ru": {
     "brand": "Афродита",
@@ -597,7 +603,9 @@ export const translations = {
     "availableNodes": "Готовые маршруты",
     "nativeNetworkHint": "Маршрут определяется автоматически. Создайте аккаунт для подключения. Другие страны требуют настроенных реальных выходов.",
     "autoCountry": "Автоматический выход",
-    "noCountries": "Отдельные выходы по странам не настроены."
+    "noCountries": "Отдельные выходы по странам не настроены.",
+    "addConnection": "Добавить подключение",
+    "connectionAddHint": "Только управление. Регистрация существующего собственного узла не развёртывает сервис и не проверяет исходящий трафик. Пустые SNI и Host используют адрес."
   },
   "ar": {
     "brand": "أفروديت",
@@ -747,6 +755,8 @@ export const translations = {
     "availableNodes": "المسارات الجاهزة",
     "nativeNetworkHint": "يُكتشف هذا المسار تلقائياً. أنشئ حساباً للاتصال. تتطلب الدول الأخرى مخارج حقيقية مهيأة.",
     "autoCountry": "خروج تلقائي",
-    "noCountries": "لم تُهيأ مخارج مستقلة للدول."
+    "noCountries": "لم تُهيأ مخارج مستقلة للدول.",
+    "addConnection": "إضافة اتصال موجود",
+    "connectionAddHint": "للإدارة فقط. تسجيل عقدة اتصال مملوكة موجودة لا ينشر خدمة ولا يتحقق من حركة المرور. يستخدم SNI وHost الفارغان العنوان."
   }
 };
