@@ -127,7 +127,7 @@ export const translations = {
     "renewCredentials": "Rotate access credentials",
     "nativeBackup": "Export native accounts",
     "nativeRestore": "Import accounts / legacy backup",
-    "testProxy": "Test first proxy",
+    "testProxy": "Test proxy pool",
     "stats": "Account statistics",
     "usedTraffic": "Charged / reserved traffic",
     "connections": "Active connections",
@@ -149,7 +149,8 @@ export const translations = {
     "autoCountry": "Automatic exit",
     "noCountries": "No separate country exits are configured.",
     "addConnection": "Add existing connection",
-    "connectionAddHint": "Management only. Register an existing owned connection service; this does not deploy a service or verify outbound traffic. Blank SNI and Host use the address."
+    "connectionAddHint": "Management only. Register an existing owned connection service; this does not deploy a service or verify outbound traffic. Blank SNI and Host use the address.",
+    "proxyPoolHint": "Enter 1–8 SOCKS4, SOCKS5, HTTP or HTTPS proxy URLs, one per line. Tests do not save settings or prove HTTPS/country routing."
   },
   "fa": {
     "brand": "افرودیت",
@@ -279,7 +280,7 @@ export const translations = {
     "renewCredentials": "تغییر کلید اتصال",
     "nativeBackup": "پشتیبان حساب‌های بومی",
     "nativeRestore": "ورود حساب‌ها / پشتیبان قدیمی",
-    "testProxy": "آزمایش اولین پراکسی",
+    "testProxy": "آزمون استخر پروکسی",
     "stats": "آمار حساب",
     "usedTraffic": "حجم حساب‌شده / رزروشده",
     "connections": "اتصال‌های فعال",
@@ -301,7 +302,8 @@ export const translations = {
     "autoCountry": "خروجی خودکار",
     "noCountries": "خروجی کشور جداگانه‌ای پیکربندی نشده است.",
     "addConnection": "افزودن گرهٔ موجود",
-    "connectionAddHint": "فقط بخش مدیریت: گرهٔ اتصال متعلق به خودتان را ثبت کنید. این کار سرویس تازه نصب نمی‌کند و عبور ترافیک را تأیید نمی‌کند. SNI و Host خالی از آدرس پر می‌شوند."
+    "connectionAddHint": "فقط بخش مدیریت: گرهٔ اتصال متعلق به خودتان را ثبت کنید. این کار سرویس تازه نصب نمی‌کند و عبور ترافیک را تأیید نمی‌کند. SNI و Host خالی از آدرس پر می‌شوند.",
+    "proxyPoolHint": "۱ تا ۸ آدرس SOCKS4، SOCKS5، HTTP یا HTTPS، هر خط یک مورد. آزمون تنظیمات را ذخیره نمی‌کند و تأیید HTTPS یا کشور خروجی نیست."
   },
   "zh": {
     "brand": "阿芙罗狄忒",
@@ -431,7 +433,7 @@ export const translations = {
     "renewCredentials": "轮换访问凭证",
     "nativeBackup": "导出原生账户",
     "nativeRestore": "导入账户或旧备份",
-    "testProxy": "测试第一个代理",
+    "testProxy": "测试代理池",
     "stats": "账户统计",
     "usedTraffic": "已计费或预留流量",
     "connections": "活跃连接",
@@ -453,7 +455,8 @@ export const translations = {
     "autoCountry": "自动出口",
     "noCountries": "尚未配置独立国家出口。",
     "addConnection": "添加现有连接",
-    "connectionAddHint": "仅管理服务。注册已有的自有连接节点；不会部署服务或验证出站流量。空的 SNI 和 Host 使用地址。"
+    "connectionAddHint": "仅管理服务。注册已有的自有连接节点；不会部署服务或验证出站流量。空的 SNI 和 Host 使用地址。",
+    "proxyPoolHint": "输入 1–8 个 SOCKS4、SOCKS5、HTTP 或 HTTPS 代理，每行一个。测试不会保存设置，也不验证 HTTPS 或出口国家。"
   },
   "ru": {
     "brand": "Афродита",
@@ -583,7 +586,7 @@ export const translations = {
     "renewCredentials": "Сменить ключ доступа",
     "nativeBackup": "Экспорт аккаунтов ядра",
     "nativeRestore": "Импорт аккаунтов / старой копии",
-    "testProxy": "Проверить первый прокси",
+    "testProxy": "Проверить пул прокси",
     "stats": "Статистика аккаунта",
     "usedTraffic": "Учтённый / зарезервированный трафик",
     "connections": "Активные подключения",
@@ -605,7 +608,8 @@ export const translations = {
     "autoCountry": "Автоматический выход",
     "noCountries": "Отдельные выходы по странам не настроены.",
     "addConnection": "Добавить подключение",
-    "connectionAddHint": "Только управление. Регистрация существующего собственного узла не развёртывает сервис и не проверяет исходящий трафик. Пустые SNI и Host используют адрес."
+    "connectionAddHint": "Только управление. Регистрация существующего собственного узла не развёртывает сервис и не проверяет исходящий трафик. Пустые SNI и Host используют адрес.",
+    "proxyPoolHint": "Введите 1–8 URL SOCKS4, SOCKS5, HTTP или HTTPS, по одному на строку. Проверка не сохраняет настройки и не подтверждает HTTPS или страну выхода."
   },
   "ar": {
     "brand": "أفروديت",
@@ -735,7 +739,7 @@ export const translations = {
     "renewCredentials": "تغيير مفتاح الاتصال",
     "nativeBackup": "تصدير الحسابات الأصلية",
     "nativeRestore": "استيراد الحسابات أو النسخ القديمة",
-    "testProxy": "اختبار البروكسي الأول",
+    "testProxy": "اختبار مجموعة البروكسي",
     "stats": "إحصاءات الحساب",
     "usedTraffic": "الاستهلاك المحتسب أو المحجوز",
     "connections": "الاتصالات النشطة",
@@ -757,6 +761,7 @@ export const translations = {
     "autoCountry": "خروج تلقائي",
     "noCountries": "لم تُهيأ مخارج مستقلة للدول.",
     "addConnection": "إضافة اتصال موجود",
-    "connectionAddHint": "للإدارة فقط. تسجيل عقدة اتصال مملوكة موجودة لا ينشر خدمة ولا يتحقق من حركة المرور. يستخدم SNI وHost الفارغان العنوان."
+    "connectionAddHint": "للإدارة فقط. تسجيل عقدة اتصال مملوكة موجودة لا ينشر خدمة ولا يتحقق من حركة المرور. يستخدم SNI وHost الفارغان العنوان.",
+    "proxyPoolHint": "أدخل 1–8 عناوين SOCKS4 أو SOCKS5 أو HTTP أو HTTPS، عنواناً بكل سطر. الاختبار لا يحفظ الإعدادات ولا يؤكد HTTPS أو بلد الخروج."
   }
 };

@@ -1,3 +1,4 @@
+import './build-runtime.mjs';
 import {report} from './progress.mjs';
 import {build,transform as minify} from 'esbuild';
 import {randomBytes,createHash} from 'node:crypto';

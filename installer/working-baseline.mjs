@@ -1,3 +1,4 @@
+import './build-runtime.mjs';
 import {build,transform} from 'esbuild';
 import {readFileSync} from 'node:fs';
 import {readFile,writeFile,mkdir,cp} from 'node:fs/promises';
