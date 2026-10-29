@@ -4,6 +4,7 @@ import {buildArtifact} from './build.mjs';
 import {deployCloudflare} from './cloudflare.mjs';
 import {jsonRequest,name} from './common.mjs';
 import {deploymentFetch} from './network.mjs';
+import {connectionDomain} from './domains.mjs';
 export function splitPlan(options){
  const prefix=name(options.name).slice(0,38),connections=[];
  const targets=options.targets||[{id:'primary',connections:options.connections??2,providers:options.connectionProviders||'workers,pages',account:options.account,token:options.token}];
@@ -54,7 +55,9 @@ export async function deploySplit(options,env,{preview=false,deploy=deployCloudf
   report('Deploy connection '+(index+1)+'/'+plan.connections.length+' ('+item.provider+', profile '+item.profile+')');
   const routing=Object.fromEntries(['NATIVE_RELAY_UUID','TUNNEL_ROUTES_JSON'].filter(key=>env[key]).map(key=>[key,env[key]]));
   const edgeEnv={...routing,DEPLOYMENT_ROLE:'connection',NATIVE_ENABLED:'true',EDGE_CONTROL_URL:central.url+'/'+controlPath,EDGE_CONTROL_TOKEN:secret,EDGE_PROBE_PATH:randomBytes(24).toString('hex')};
-  const result=await deploy({...options,...item,account:profile.account,token:profile.token,domain:undefined,zone:undefined,databaseId:undefined},edgeEnv,connection);
+  // Custom DNS is scoped to the management account; additional accounts retain their own provider URLs.
+  const domain=options.domain&&profile.account===account?connectionDomain(options.domain,index,item.profile):undefined;
+  const result=await deploy({...options,...item,account:profile.account,token:profile.token,domain,zone:domain?options.zone:undefined,databaseId:undefined},edgeEnv,connection);
   edges.push(result);const host=new URL(result.url).hostname;
   await register(central,centralEnv,[{address:host,sni:host,host}]);
  }

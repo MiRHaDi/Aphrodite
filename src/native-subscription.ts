@@ -14,13 +14,25 @@ export function selectedAddresses(account:NativeAccount,host:string,now=Date.now
   const offset=(epoch+account.uuid.split('').reduce((sum,char)=>sum+char.charCodeAt(0),0))%pool.length;
   return Array.from({length:Math.min(settings.addressCount,pool.length)},(_,index)=>pool[(offset+index)%pool.length]!);
 }
+export function countryLabel(country:string):string{
+ if(country==='smart')return '🧠 Smart';
+ const code=(country==='turkey'?'TR':country.toUpperCase());
+ if(!/^[A-Z]{2}$/.test(code))return country;
+ const flag=String.fromCodePoint(...[...code].map(c=>127397+c.charCodeAt(0)));
+ const name=new Intl.DisplayNames(['en'],{type:'region'}).of(code)||code;
+ return flag+' '+name;
+}
+export function configuredCountries(routes:Record<string,unknown[]>,relay:boolean):string[]{
+ if(!relay)return ['smart'];
+ return ['smart',...Object.keys(routes).filter(path=>/^\/edge\/(?:[a-z]{2}|turkey)$/.test(path)&&routes[path]?.length).map(path=>path.slice(6)).sort()];
+}
 export function nativeLinks(account:NativeAccount,host:string,now=Date.now(),countries=['smart'],endpoint?:EdgeEndpoint):string[]{
   const settings=settingsFor(account);const links:string[]=[];
   for(const country of countries)for(const [index,address] of selectedAddresses(account,endpoint?.address||host,now).entries())for(const port of settings.ports){
     const url=new URL('vless://'+account.uuid+'@'+(address.includes(':')?'['+address.replace(/^\[|\]$/g,'')+']':address)+':'+port);
     for(const [key,value] of Object.entries({encryption:'none',security:'tls',sni:endpoint?.sni||host,host:endpoint?.host||host,type:'ws',path:country==='smart'?'/edge/native':'/edge/native/'+country,fp:settings.fingerprint,alpn:'http/1.1',allowInsecure:'0'}))url.searchParams.set(key,value);
     if(settings.fragment.enabled)url.searchParams.set('fragment',settings.fragment.length+','+settings.fragment.interval+',tlshello');
-    const names:Record<string,string>={smart:'🧠 Smart',us:'🇺🇸 US',nl:'🇳🇱 NL',sg:'🇸🇬 SG',ir:'🇮🇷 IR',de:'🇩🇪 DE',turkey:'🇹🇷 TR'};url.hash=encodeURIComponent(cleanSubscriptionName('Aphrodite · '+(names[country]||country)+' · '+account.username+' · '+(index+1)+' / '+port)+' · '+(links.length+1));links.push(url.href);
+    url.hash=encodeURIComponent(cleanSubscriptionName('Aphrodite · '+countryLabel(country)+' · '+account.username+' · '+(index+1)+' / '+port)+' · '+(links.length+1));links.push(url.href);
   }return links;
 }
 function base64(value:string):string{let binary='';for(const byte of new TextEncoder().encode(value))binary+=String.fromCharCode(byte);return btoa(binary)}
@@ -34,7 +46,7 @@ export async function nativeSubscription(request:Request,env:Env,account:NativeA
   const response=await ledger(env,account);if(!response.ok)return text('Accounting unavailable',503);
   const status=await response.json() as {usedBytes:number;requests:number};
   if((settings.dataLimitBytes&&status.usedBytes>=settings.dataLimitBytes)||(settings.requestLimit&&status.requests>=settings.requestLimit))return text('Account quota exceeded',403,{'cache-control':'no-store'});
-  const routes=tunnelMap(env),countries=env.NATIVE_RELAY_UUID?['smart','us','nl','sg','ir','de','turkey'].filter(country=>routes['/edge/'+country]?.length):['smart'];
+  const routes=tunnelMap(env),countries=configuredCountries(routes,Boolean(env.NATIVE_RELAY_UUID));
   const url=new URL(request.url),edgeEnv={...env,PUBLIC_EDGE_HOST:env.PUBLIC_EDGE_HOST||url.hostname},endpoint=subscriptionEndpoint(edgeEnv,account.username),host=endpoint.host;
   const endpoints=[endpoint,...subscriptionEndpoints(edgeEnv).filter(e=>e.address!==endpoint.address||e.sni!==endpoint.sni||e.host!==endpoint.host)];
   const links=endpoints.flatMap((e,index)=>nativeLinks(account,e.host,Date.now(),countries,e).map(link=>{const u=new URL(link);u.hash=encodeURIComponent(decodeURIComponent(u.hash.slice(1))+' · '+(index+1));return u.href;}));
