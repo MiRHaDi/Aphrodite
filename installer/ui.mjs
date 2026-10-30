@@ -28,8 +28,9 @@ export function interfaceFor({input=process.stdin,output=process.stdout}={}){
 
 export function terminalLink(url,label=url){
  if(!process.stdout.isTTY)return label===url?url:label+' ('+url+')';
- const display=process.env.NO_COLOR?label:'\x1b['+(label===url?'1;36':'1;33')+'m'+label+'\x1b[0m';
- return '\x1b]8;;'+url+'\x1b\\'+display+'\x1b]8;;\x1b\\';
+ // Keep the visible text completely plain inside OSC 8. Older Windows terminal
+ // hosts often discard a hyperlink when SGR colour escapes are nested in it.
+ return '\x1b]8;;'+url+'\x1b\\'+label+'\x1b]8;;\x1b\\';
 }
 
 export const cloudflareTokenUrl='https://dash.cloudflare.com/profile/api-tokens?permissionGroupKeys='+encodeURIComponent(JSON.stringify([

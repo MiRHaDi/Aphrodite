@@ -18,6 +18,6 @@ export async function showInstallationResult(result,env,{ui,interactiveCard=fals
   console.log('\n  Private result page:\n  '+terminalLink(card.url));
   console.log('  Explicit --result-page mode: this process stays open for up to 10 minutes. Ctrl+C closes it.');
  }
- console.log('  Links: Ctrl+click in a supported terminal; otherwise copy the URL into your browser.');
+ console.log('  Links are terminal hyperlinks. If this Windows host does not support Ctrl+click, run: Start-Process "<URL>"');
  console.log('  Readiness is verified; outbound transport still needs npm run test:live.');
 }
