@@ -14,7 +14,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci --ignore-scripts --no-fund --no-audit
-      - run: node node_modules/vitest/vitest.mjs run test/installer-session.test.mjs test/installer-resume.test.mjs test/installer-wizard.test.mjs test/installer-ui.test.mjs test/english-installer.test.mjs
+      - run: node node_modules/vitest/vitest.mjs run test/installer-session.test.mjs test/installer-resume.test.mjs test/installer-wizard.test.mjs test/installer-ui.test.mjs test/english-installer.test.mjs test/installer-api.test.mjs --maxWorkers=1
       - run: npm run test:baseline-ui
   test:
     runs-on: ubuntu-latest

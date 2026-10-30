@@ -14,6 +14,7 @@
     "db:migrate:local": "wrangler d1 migrations apply aphrodite-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply aphrodite-db --remote",
     "install:guided": "node installer/cli.mjs",
+    "install:api": "node installer/api.mjs",
     "build:portable": "node installer/build.mjs node",
     "build:edge": "node installer/build.mjs workers",
     "test:live": "node scripts/test-live.mjs",

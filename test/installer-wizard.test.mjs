@@ -40,6 +40,11 @@ it('resumes unattended from saved defaults without opening an input prompt',asyn
  const {session,ui}=await fixture();const result=await prepareInstall({resume:true},ui,{sessionFactory:async()=>session,interactive:false});
  expect(result.provider).toBe('pages');expect(result.options.token).toBe('fake-saved-provider-token');expect(ui.ask).not.toHaveBeenCalled();expect(ui.provider).not.toHaveBeenCalled();
 });
+it('uses request-scoped credentials and an explicit automated DNS policy without prompting',async()=>{
+ const {session,ui}=await fixture();const previous=process.env.CLOUDFLARE_API_TOKEN;
+ const result=await prepareInstall({resume:true,'domain-conflict':'reuse'},ui,{sessionFactory:async()=>session,interactive:false,environment:{CLOUDFLARE_API_TOKEN:'request-scoped-fixture-token'}});
+ expect(result.options.token).toBe('request-scoped-fixture-token');expect(await result.options.askDomain('fixture')).toBe('1');expect(ui.ask).not.toHaveBeenCalled();expect(process.env.CLOUDFLARE_API_TOKEN).toBe(previous);
+});
 it('can choose a missing custom domain when resuming a named installation',async()=>{
  const {session,ui}=await fixture();
  ui.ask.mockImplementation(async label=>label.startsWith('Configure a custom hostname')?'y':'');

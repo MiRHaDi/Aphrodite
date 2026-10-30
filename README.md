@@ -49,6 +49,8 @@ The installer is English-only. Choose a destination with A-G. Installation event
 
 Existing service names are refused. Failed provisioning can leave resources, and provider charges may apply. [Full requirements and unattended options](docs/INSTALLER.md).
 
+For other programs, use the [JSON CLI, JavaScript API or authenticated local HTTP API](docs/INSTALLER_API.md). They share the guided installer's deployment and recovery path.
+
 ## Manage your connections
 
 | Accounts | Profiles | Runtime |

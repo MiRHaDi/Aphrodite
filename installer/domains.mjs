@@ -16,7 +16,7 @@ export async function selectPagesDomain(domain,target,readRecords,ask){
  if(!records.length)return {domain};
  if(!ask){
   if(pagesDnsMatches(records,target))return {domain};
-  throw Error('Custom hostname is already configured; run interactively to reuse it or choose another hostname');
+  throw Object.assign(Error('Custom hostname is already configured; choose domain-conflict reuse, new or fail'),{code:'DOMAIN_DECISION_REQUIRED'});
  }
  const replaceable=records.length===1&&['A','AAAA','CNAME'].includes(records[0].type);
  let choice;
@@ -45,13 +45,17 @@ export function connectionDomain(domain,index,profile='primary'){
  if(!Number.isInteger(index)||index<0||!/^[a-z0-9-]{1,8}$/.test(profile))throw Error('Invalid connection domain identifier');
  return normalizeDomain('connect-'+profile+'-'+(index+1)+'.'+host);
 }
-export async function chooseCloudflareDomain(options,ui,{request=jsonRequest}={}){
+export async function listCloudflareZones(options,{request=jsonRequest}={}){
  const base='https://api.cloudflare.com/client/v4/';
  const zones=[];let page=1;
  while(true){
   const data=await request(base+'zones?per_page=50&page='+page+(options.account?'&account.id='+encodeURIComponent(options.account):''),{token:options.token});
   zones.push(...(data.result||[]));if(page>=(data.result_info?.total_pages||1))break;page++;
  }
+ return zones;
+}
+export async function chooseCloudflareDomain(options,ui,{request=jsonRequest}={}){
+ const zones=await listCloudflareZones(options,{request});
  if(!zones.length){ui.detail({level:'info',message:'No accessible DNS zones; keep provider hostname or supply --domain and --zone.'});return;}
  let answer=options.domain;
  if(!answer){

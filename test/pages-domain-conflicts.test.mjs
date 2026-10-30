@@ -23,7 +23,7 @@ it('keeps matching DNS untouched or selects a new hostname when requested',async
 });
 it('does not replace DNS without an interactive decision or after concurrent changes',async()=>{
  const record={id:'record',name:'test.example.com',type:'A',content:'192.0.2.1'};
- await expect(selectPagesDomain(record.name,'new.pages.dev',async()=>[record])).rejects.toThrow('run interactively');
+ await expect(selectPagesDomain(record.name,'new.pages.dev',async()=>[record])).rejects.toMatchObject({code:'DOMAIN_DECISION_REQUIRED'});
  await expect(bindPagesDns(record.name,'new.pages.dev',{readRecords:async()=>[{...record,content:'192.0.2.2'}],replaceRecord:async()=>{throw Error('Unexpected update')}},record)).rejects.toThrow('DNS changed after selection');
  await expect(selectPagesDomain(record.name,'new.pages.dev',async()=>[record,{type:'TXT',content:'retain me'}],async()=> '1')).rejects.toThrow('multiple or non-address');
 });
