@@ -15,9 +15,12 @@ export interface NativeSettings {
   proxies: string[];
   rotateProxy: boolean;
   fragment: { enabled: boolean; length: string; interval: string };
+  pageTitle: string;
+  pageMessage: string;
+  pageAccent: string;
 }
 export interface NativeAccount { username: string; uuid: string; subscription_key?: string; enabled: number; expires_at: number | null; settings_json: string; revision: number; created_at: number; updated_at: number }
-export const nativeDefaults: NativeSettings = { dataLimitBytes: 100 * 1073741824, requestLimit: 0, maxConnections: 0, maxIps: 0, resetVolumeDays: 0, resetRequestDays: 0, rotationMinutes: 0, addressCount: 3, addresses: [], ports: [443], fingerprint: 'chrome', blockAds: false, blockAdult: false, proxies: [], rotateProxy: true, fragment: { enabled: false, length: '100-200', interval: '1-2' } };
+export const nativeDefaults: NativeSettings = { dataLimitBytes: 100 * 1073741824, requestLimit: 0, maxConnections: 0, maxIps: 0, resetVolumeDays: 0, resetRequestDays: 0, rotationMinutes: 0, addressCount: 3, addresses: [], ports: [443], fingerprint: 'chrome', blockAds: false, blockAdult: false, proxies: [], rotateProxy: true, fragment: { enabled: false, length: '100-200', interval: '1-2' }, pageTitle: '', pageMessage: '', pageAccent: '#7c6cff' };
 
 export function parseNativeSettings(value: unknown): NativeSettings | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -32,6 +35,7 @@ export function parseNativeSettings(value: unknown): NativeSettings | null {
   if (typeof result.blockAds !== 'boolean' || typeof result.blockAdult !== 'boolean' || typeof result.rotateProxy !== 'boolean') return null;
   if (!Array.isArray(result.proxies) || result.proxies.length > 8 || result.proxies.some(proxy => !validProxy(proxy))) return null;
   if (!result.fragment || typeof result.fragment.enabled !== 'boolean' || !/^\d{1,4}-\d{1,4}$/.test(result.fragment.length) || !/^\d{1,3}-\d{1,3}$/.test(result.fragment.interval)) return null;
+  if (typeof result.pageTitle !== 'string' || result.pageTitle.length > 80 || typeof result.pageMessage !== 'string' || result.pageMessage.length > 280 || typeof result.pageAccent !== 'string' || !/^#[0-9a-f]{6}$/i.test(result.pageAccent)) return null;
   return result;
 }
 export function validHost(host: string): boolean {
