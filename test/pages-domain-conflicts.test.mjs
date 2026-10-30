@@ -33,7 +33,7 @@ it('keeps matching DNS untouched or selects a new hostname when requested',async
  const keep=await selectPagesDomain('test.example.com','test.pages.dev',async()=>[record],async()=> '');
  expect(keep).toEqual({domain:'test.example.com'});
  await bindPagesDns(keep.domain,'test.pages.dev',{readRecords:async()=>[record],createRecord:async()=>{throw Error('Unexpected create')},replaceRecord:async()=>{throw Error('Unexpected update')}});
- const changed=await selectPagesDomain('test.example.com','test.pages.dev',async domain=>domain==='test.example.com'?[record]:[],async()=> '2',{zoneName:'example.com'});
+ const changed=await selectPagesDomain('test.example.com','test.pages.dev',async domain=>domain==='test.example.com'?[record]:[],async()=> '2',{zoneName:'example.com',promptMatching:true});
  expect(changed).toEqual({domain:'test-2.example.com'});
 });
 it('does not replace DNS without an interactive decision or after concurrent changes',async()=>{

@@ -3,29 +3,34 @@ import {configuration,name} from './common.mjs';
 import {activity,report} from './progress.mjs';
 import {tokenGuide} from './ui.mjs';
 import {chooseCloudflareDomain,normalizeDomain} from './domains.mjs';
+import {passwordHash} from './password.mjs';
 const providers=['workers','pages','railway','render','docker','vps','bundle'];
 const tokenNames={workers:'CLOUDFLARE_API_TOKEN',pages:'CLOUDFLARE_API_TOKEN',railway:'RAILWAY_API_TOKEN',render:'RENDER_API_KEY'};
-const savedKeys=['provider','name','account','zone','zoneName','subdomain','domain','connections','connectionProviders','databaseId','topology'];
+const savedKeys=['provider','name','account','zone','zoneName','subdomain','domain','subscriptionId','wildcardDomain','wildcardTlsReady','connections','connectionProviders','databaseId','topology'];
 export async function prepareInstall(values,ui,{sessionFactory=openSession,interactive=Boolean(process.stdin.isTTY),environment=process.env,domainChooser=chooseCloudflareDomain}={}){
  const preview=values.preview;
- let session,adding=values['add-account'];
+ let session,adding=values['add-account'],configure=Boolean(values.configure);
  if(!preview&&!values['no-save']&&(!values.provider||['workers','pages'].includes(values.provider))){
   session=await sessionFactory({path:values.state,fresh:values.new});
   if(session.state.options.name&&interactive&&!values.resume&&!values.new&&!adding){
-   const action=(await ui.ask('Saved '+session.state.options.name+': [R]esume, [A]dd account, [N]ew installation [R]')).toLowerCase();
+   const action=(await ui.ask('Saved '+session.state.options.name+': [R]esume quickly, [E]dit settings, [A]dd account, [N]ew installation [R]')).toLowerCase();
    if(action==='n')session=await sessionFactory({path:values.state,fresh:true});
    else if(action==='a')adding=true;
+   else if(action==='e')configure=true;
   }
  }
  const saved=session?.state.options||{};
- const choose=async(label,value,fallback)=>value!==undefined?value:interactive?(await ui.ask(label+' ['+(fallback||'')+']'))||fallback:fallback;
+ const promptActive=interactive&&(!saved.name||configure||adding);
+ const choose=async(label,value,fallback)=>value!==undefined?value:promptActive?(await ui.ask(label+' ['+(fallback||'')+']'))||fallback:fallback;
  ui.step('Resolve deployment destination');
- const provider=values.provider||(interactive?await ui.provider(saved.provider||'workers'):saved.provider);if(!provider)throw Error('Specify --provider or resume a saved installation');if(!providers.includes(provider))throw Error('Unknown provider');
+ const provider=values.provider||(promptActive?await ui.provider(saved.provider||'workers'):saved.provider);if(!provider)throw Error('Specify --provider or resume a saved installation');if(!providers.includes(provider))throw Error('Unknown provider');
  if(!['workers','pages'].includes(provider))session=undefined;
  const installationName=name(await choose('Installation name',values.name,saved.name||'aphrodite-'+Date.now().toString(36)));
  if(session&&Object.keys(session.state.services).length&&(provider!==saved.provider||installationName!==saved.name))throw Error('Changing an existing management destination requires --new; its current users and database are preserved');
  const options={...values,provider,name:installationName,account:values.account||saved.account,zone:values.zone||saved.zone,domain:values.domain||saved.domain,connections:(adding?saved.connections:values.connections)||saved.connections||'2',connectionProviders:(adding?saved.connectionProviders:values['connection-providers'])||saved.connectionProviders||'workers,pages',databaseId:values['database-id']||saved.databaseId,session};
+ options.configure=configure;
  options.zoneName=values['base-domain']||saved.zoneName;options.subdomain=values.subdomain??saved.subdomain;
+ options.subscriptionId=values['subscription-id']||saved.subscriptionId||'opaque';options.wildcardDomain=values['wildcard-domain']||saved.wildcardDomain;options.wildcardTlsReady=values['wildcard-tls-ready']??saved.wildcardTlsReady;
  if(values.domain){options.zoneName=undefined;options.subdomain=undefined;if(!values.zone)options.zone=undefined;}
  if(values['base-domain']||values.subdomain!==undefined){options.domain=undefined;if(values['base-domain']!==saved.zoneName&&!values.zone)options.zone=undefined;}
  if(values['domain-conflict']&&!['reuse','new','fail'].includes(values['domain-conflict']))throw Error('domain-conflict must be reuse, new or fail');
@@ -53,29 +58,54 @@ export async function prepareInstall(values,ui,{sessionFactory=openSession,inter
   const stored=session?await activity('Read provider credentials from system storage',()=>session.secret('provider-token')):undefined;
   const fallback=environment[envName]||stored;
   if(interactive&&!fallback&&['workers','pages'].includes(provider))tokenGuide();
-  options.token=interactive?(await ui.ask('Provider API token'+(fallback?' [saved/environment; Enter to keep]':'')))||fallback:fallback;
+  options.token=promptActive||interactive&&!fallback?(await ui.ask('Provider API token'+(fallback?' [saved/environment; Enter to keep]':'')))||fallback:fallback;
   if(!options.token)throw Error('Provider token is required; enter it interactively or set '+envName);
   if(session&&options.token!==stored)await activity('Save provider token in system credential storage',()=>session.secret('provider-token',options.token));
   if(['workers','pages'].includes(provider)){options.account=await choose('Cloudflare account ID (blank to auto-detect)',values.account,saved.account||'');if(Object.keys(session?.state.services||{}).length&&saved.account&&options.account!==saved.account)throw Error('Use Add account to extend the existing installation; its management account is preserved');}
  }
  if(options.domain)options.domain=normalizeDomain(options.domain);
  if(!preview&&!adding&&['workers','pages'].includes(provider)){
-  const configure=interactive?(options.domain||options.zoneName||!saved.name||(await ui.ask('Configure a custom hostname for this installation? [y/N]')).toLowerCase()==='y'):(options.domain||options.zoneName)&&(!options.zone||!options.zoneName||!options.domain);
-  if(configure)await domainChooser(options,ui,{interactive});
+  const selectDomain=promptActive?(options.domain||options.zoneName||!saved.name||(await ui.ask('Configure a custom hostname for this installation? [y/N]')).toLowerCase()==='y'):(options.domain||options.zoneName)&&(!options.zone||!options.zoneName||!options.domain);
+  if(selectDomain)await domainChooser(options,ui,{interactive:promptActive});
   report(options.domain?'Custom hostname: '+options.domain+' | DNS zone: '+options.zone:'Custom hostname not selected; using provider addresses');
  }
  if(provider==='render'&&!preview){options.plan=options.plan||await ui.ask('Render plan with persistent disk (paid; for example starter)');if(options.plan==='free')throw Error('Render persistent disk requires a paid plan');}
+ if(promptActive&&!adding&&!preview&&!values['subscription-id']){
+  const fallback={opaque:'1',username:'2',uuid:'3'}[options.subscriptionId]||'1';
+  let choice;do{choice=(await ui.ask('Subscription suffix: 1) Random key 2) Username 3) UUID ['+fallback+']')).trim()||fallback;}while(!['1','2','3'].includes(choice));options.subscriptionId={1:'opaque',2:'username',3:'uuid'}[choice];
+ }
+ if(promptActive&&!adding&&!preview&&options.domain&&!options.wildcardDomain&&(await ui.ask('Enable per-user wildcard subscriptions under '+options.zoneName+'? [y/N]')).toLowerCase()==='y')options.wildcardDomain=options.zoneName;
+ if(!['opaque','username','uuid'].includes(options.subscriptionId))throw Error('Invalid subscription-id');
+ if(options.wildcardDomain){
+  options.wildcardDomain=normalizeDomain(options.wildcardDomain);
+  if(!['workers','pages'].includes(provider)||!options.zoneName||!options.domain||options.wildcardDomain!==options.zoneName&&!options.wildcardDomain.endsWith('.'+options.zoneName))throw Error('Wildcard subscriptions require a custom Cloudflare domain in the selected zone');
+  if(options.wildcardDomain!==options.zoneName&&!options.wildcardTlsReady)throw Error('Nested wildcard domain requires a matching TLS certificate; configure it before using --wildcard-tls-ready');
+ }
  if(provider==='vps'&&!preview){options.host=options.host||await ui.ask('SSH host');options.sshPort=values['ssh-port'];options.password=environment.SSH_PASSWORD;if(!options.key&&!options.password)options.password=await ui.ask('SSH password',true);options.fingerprint=options.fingerprint||await ui.ask('Verified SSH fingerprint (SHA256:...)');}
  let variables=environment.APHRODITE_VARIABLES;
  if(!variables&&session)variables=await session.secret('advanced-variables');
  try{options.variables=JSON.parse(variables||'{}');}catch{throw Error('Invalid APHRODITE_VARIABLES JSON');}
- if(!options.variables||Array.isArray(options.variables)||typeof options.variables!=='object'||Object.entries(options.variables).some(([k,v])=>!/^[A-Z][A-Z0-9_]*$/.test(k)||typeof v!=='string'||['ADMIN_PATH','ADMIN_TOKEN'].includes(k)))throw Error('Invalid advanced variables');
+ if(!options.variables||Array.isArray(options.variables)||typeof options.variables!=='object'||Object.entries(options.variables).some(([k,v])=>!/^[A-Z][A-Z0-9_]*$/.test(k)||typeof v!=='string'||['ADMIN_PATH','ADMIN_TOKEN','ADMIN_PASSWORD','ADMIN_PASSWORD_HASH'].includes(k)))throw Error('Invalid advanced variables');
  let administrator=session?await session.secret('administrator'):undefined;
  if(administrator)administrator=JSON.parse(administrator);
+ let administratorPasswordHash=session?await session.secret('administrator-password-hash'):undefined;
+ let password=environment.ADMIN_PASSWORD;
+ if(!interactive&&values['set-password']&&!password)throw Error('Set ADMIN_PASSWORD when using --set-password unattended');
+ if(interactive&&!preview&&(values['set-password']||configure&&!adding||!administrator&&!saved.name))password=password||(await ui.ask('Optional administrator password (12+ characters; Enter keeps current login)',true));
+ if(password){administratorPasswordHash=passwordHash(password,administratorPasswordHash);if(session)await session.secret('administrator-password-hash',administratorPasswordHash);}
+ options.adminPasswordHash=administratorPasswordHash;
  if(session&&Object.keys(session.state.services).length&&!administrator)throw Error('Saved administrator credentials are unavailable. Restore the system credential store before resuming');
  if(!interactive&&!preview&&provider!=='bundle'&&!administrator&&(!environment.ADMIN_TOKEN||!(values['admin-path']||environment.ADMIN_PATH)))throw Error('Unattended first installation requires ADMIN_TOKEN and ADMIN_PATH');
  if(values['no-save']&&!preview&&['workers','pages'].includes(provider)&&(!environment.ADMIN_TOKEN||!(values['admin-path']||environment.ADMIN_PATH)))throw Error('--no-save requires ADMIN_TOKEN and ADMIN_PATH so recovery credentials are not lost');
  const env=configuration({...options,adminPath:administrator?.path||values['admin-path']||environment.ADMIN_PATH,adminToken:administrator?.token||environment.ADMIN_TOKEN});
+ if(administratorPasswordHash)env.ADMIN_PASSWORD_HASH=administratorPasswordHash;
+ env.SUBSCRIPTION_ID_MODE=options.subscriptionId;
+ if(options.wildcardDomain){
+  env.SUBSCRIPTION_DOMAIN=options.wildcardDomain;
+  let gatewayToken=session?await session.secret('wildcard-gateway-token'):undefined;
+  if(!gatewayToken){gatewayToken=configuration({}).ADMIN_TOKEN;if(session)await session.secret('wildcard-gateway-token',gatewayToken);}
+  env.WILDCARD_GATEWAY_TOKEN=gatewayToken;
+ }
  if(['render','railway'].includes(provider))env.TRUST_PROXY='true';
  if(session){
   if(!administrator)await activity('Save administrator credentials securely',()=>session.secret('administrator',JSON.stringify({path:env.ADMIN_PATH,token:env.ADMIN_TOKEN})));
@@ -97,7 +127,7 @@ export async function prepareInstall(values,ui,{sessionFactory=openSession,inter
   options.targets=[];
   for(const profile of session.state.profiles){
    let token=profile.id==='primary'?options.token:await session.secret('profile-'+profile.id);
-   if(profile.id!=='primary'&&interactive&&!adding){const changed=await ui.ask('API token for profile '+profile.id+' [saved; Enter to keep]');if(changed){token=changed;await session.secret('profile-'+profile.id,token);}}
+   if(profile.id!=='primary'&&promptActive&&!adding){const changed=await ui.ask('API token for profile '+profile.id+' [saved; Enter to keep]');if(changed){token=changed;await session.secret('profile-'+profile.id,token);}}
    if(!token)throw Error('Token missing for profile '+profile.id+'; restore credentials or enter it interactively');
    options.targets.push({...profile,token});
   }

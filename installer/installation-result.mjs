@@ -6,6 +6,7 @@ export async function showInstallationResult(result,env,{ui,interactiveCard=fals
  console.log('\n  Management:\n  '+terminalLink(management));
  for(const node of result.connections||[])console.log('\n  Connection service:\n  '+terminalLink(node.url));
  console.log('\n  Administrator token (save privately): '+env.ADMIN_TOKEN);
+ if(env.ADMIN_PASSWORD_HASH)console.log('  Your chosen administrator password is also enabled; it has not been printed or replaced.');
  if(interactiveCard){
   const card=await resultCard({management,token:env.ADMIN_TOKEN,connections:(result.connections||[]).map(n=>n.url)});
   console.log('\n  Private result page:\n  '+terminalLink(card.url));

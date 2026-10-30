@@ -4,6 +4,7 @@ import type { Env } from './types';
 import { d1Ledger } from './native-ledger';
 import qrcode from 'qrcode-generator';
 import {edgeControl} from './edge-control-client';
+import {ensureSubscriptionKey,subscriptionPathFor,subscriptionUrlFor} from './subscription-keys';
 const identityCache=new Map<string,{value:NativeAccount|null;expires:number}>();
 export async function nativeIdentity(env:Env,uuid:string,fresh=false):Promise<NativeAccount|null>{
   if(env.DEPLOYMENT_ROLE==='connection'){
@@ -57,11 +58,14 @@ export async function nativeAdmin(request: Request, env: Env, username?: string,
   let account=await findNative(env,username);if(!account)return error('Account not found',404);
   if(request.method==='GET'){
     if(action==='qr'){
-      const url=new URL('/feed/'+encodeURIComponent(username),request.url);url.searchParams.set('token',account.subscription_key||'');
+      const token=await ensureSubscriptionKey(env,account.username,account.subscription_key||undefined);
+      const url=new URL(subscriptionUrlFor(env,new URL(request.url).origin,account.username,token,account.uuid));
       const qr=qrcode(0,'M');qr.addData(url.href);qr.make();
       return new Response(qr.createSvgTag({cellSize:5,margin:15,scalable:true}),{headers:{'content-type':'image/svg+xml','cache-control':'no-store','x-content-type-options':'nosniff','content-security-policy':"default-src 'none'; style-src 'unsafe-inline'"}});
     }
-    return action==='status'?ledger(env,account):json({...account,settings:settingsFor(account)});
+    if(action==='status')return ledger(env,account);
+    const token=await ensureSubscriptionKey(env,account.username,account.subscription_key||undefined);
+    return json({...account,settings:settingsFor(account),subscriptionPath:subscriptionPathFor(env,account.username,token,account.uuid),subscriptionUrl:subscriptionUrlFor(env,new URL(request.url).origin,account.username,token,account.uuid)});
   }
   if(request.method==='DELETE'){
     account={...account,enabled:0,revision:account.revision+1};await ledger(env,account,'/configure');

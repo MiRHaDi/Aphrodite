@@ -20,6 +20,8 @@ export function splitPlan(options){
 }
 export async function registerConnections(central,env,endpoints){
  return activity('Register verified connections in shared subscriptions',async()=>{
+  const current=await deploymentFetch(central.url+'/'+env.ADMIN_PATH+'/api/deployment/connections',{headers:{authorization:'Bearer '+env.ADMIN_TOKEN},signal:AbortSignal.timeout(20000)});
+  if(current.ok){const data=await current.json();if(Array.isArray(data.endpoints)&&endpoints.every(endpoint=>data.endpoints.some(saved=>saved.host===endpoint.host&&saved.sni===endpoint.sni&&saved.address===endpoint.address))){report('Connections already registered; no subscription settings changed');return {ok:true,unchanged:true};}}
   const response=await deploymentFetch(central.url+'/'+env.ADMIN_PATH+'/api/deployment/connections',{method:'POST',headers:{authorization:'Bearer '+env.ADMIN_TOKEN,'content-type':'application/json'},body:JSON.stringify({endpoints}),signal:AbortSignal.timeout(20000)});
   if(!response.ok)throw Error('Connection is deployed but registration failed (HTTP '+response.status+'); resume to retry registration');
   const data=await response.json();if(!data.ok)throw Error('Connection registration was not confirmed');return data;
@@ -33,6 +35,7 @@ export async function deploySplit(options,env,{preview=false,deploy=deployCloudf
  const token=options.token;let account=options.account;
  const resolveAccount=async token=>{const accounts=(await jsonRequest('https://api.cloudflare.com/client/v4/accounts',{token})).result;if(accounts.length!==1)throw Error('Specify the Cloudflare account ID');return accounts[0].id;};
  if(!account)account=await resolveAccount(token);
+ options.account=account;
  if(options.session){options.session.state.options.account=account;await options.session.save();}
  const profiles=options.targets||[{id:'primary',token,account}];
  const resolved=new Map();
@@ -58,9 +61,9 @@ export async function deploySplit(options,env,{preview=false,deploy=deployCloudf
   const edgeEnv={...routing,DEPLOYMENT_ROLE:'connection',NATIVE_ENABLED:'true',EDGE_CONTROL_URL:central.url+'/'+controlPath,EDGE_CONTROL_TOKEN:secret,EDGE_PROBE_PATH:randomBytes(24).toString('hex')};
   // Custom DNS is scoped to the management account; additional accounts retain their own provider URLs.
   const domain=options.domain&&profile.account===account?connectionDomain(options.domain,index,item.profile):undefined;
-  const result=await deploy({...options,...item,account:profile.account,token:profile.token,domain,zone:domain?options.zone:undefined,databaseId:undefined},edgeEnv,connection);
+  const result=await deploy({...options,...item,variables:routing,adminPasswordHash:undefined,account:profile.account,token:profile.token,domain,zone:domain?options.zone:undefined,databaseId:undefined},edgeEnv,connection);
   edges.push(result);const host=new URL(result.url).hostname;
   await register(central,centralEnv,[{address:host,sni:host,host}]);
  }
- return {topology:'split',url:central.url,database:central.database,connections:edges.map(e=>({url:e.url})),verified:true,transportVerified:false};
+ return {topology:'split',url:central.url,providerUrl:central.providerUrl,database:central.database,connections:edges.map(e=>({url:e.url})),verified:true,transportVerified:false};
 }

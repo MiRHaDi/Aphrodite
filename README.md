@@ -51,6 +51,8 @@ Existing service names are refused. Failed provisioning can leave resources, and
 
 For other programs, use the [JSON CLI, JavaScript API or authenticated local HTTP API](docs/INSTALLER_API.md). They share the guided installer's deployment and recovery path.
 
+Saved Cloudflare installs support [quick incremental resume, chosen-password login and per-user subscription addresses](docs/INCREMENTAL_INSTALL.md). Use `--configure` to edit saved settings instead of reinstalling unchanged services.
+
 ## Manage your connections
 
 | Accounts | Profiles | Runtime |

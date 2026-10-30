@@ -44,5 +44,15 @@ it.each(['workers','pages'])('resumes the same %s and database after readiness f
   expect(db.prepare("SELECT uuid,subscription_key FROM native_accounts WHERE username='preserved'").get()).toMatchObject({uuid:'original-uuid',subscription_key:'original-subscription-key'});
   const token=provider==='workers'?bindings.find(b=>b.name==='ADMIN_TOKEN').text:project.deployment_configs.production.env_vars.ADMIN_TOKEN.value;
   expect(token).toBe(env.ADMIN_TOKEN);expect(session.state.services[key].verified).toBe(true);
+  const callCount=fetch.mock.calls.length;
+  const unchanged=await deployCloudflare({...options,session,readiness:{attempts:1,delay:0,requiredConsecutive:1}},configuration({}),artifact);
+  expect(unchanged.unchanged).toBe(true);
+  expect(fetch.mock.calls.slice(callCount).every(([,init])=>!init?.method||init.method==='GET')).toBe(true);
+  const previousPath=provider==='workers'?bindings.find(b=>b.name==='ADMIN_PATH').text:project.deployment_configs.production.env_vars.ADMIN_PATH.value;
+  expect(previousPath).toBe(env.ADMIN_PATH);
+  const changed=await deployCloudflare({...options,session,variables:{PROFILE_UPDATE_INTERVAL:'12'},readiness:{attempts:1,delay:0,requiredConsecutive:1}},configuration({}),artifact);
+  expect(changed.unchanged).not.toBe(true);
+  const changedInterval=provider==='workers'?bindings.find(b=>b.name==='PROFILE_UPDATE_INTERVAL').text:project.deployment_configs.production.env_vars.PROFILE_UPDATE_INTERVAL.value;
+  expect(changedInterval).toBe('12');expect(databaseCreations).toBe(1);
  }finally{db.close();}
 },30000);

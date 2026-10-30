@@ -12,8 +12,10 @@ import { nativeAdmin, nativeEnabled } from './native-accounts';
 import { nativeBackup, nativeSettings, importNative, testNativeProxy } from './native-tools';
 import { cloudflareUsage } from './native-metrics';
 import {deploymentConnections,deploymentHealth} from './deployment-registry';
+import {adminSession} from './admin-session';
 
 async function adminApi(request: Request, env: Env, pathname: string): Promise<Response> {
+  if(pathname==='/api/session')return adminSession(request,env);
   if (!await isAdmin(request, env)) return error("Unauthorized", 401);
   if(pathname==='/api/deployment/health'&&request.method==='GET')return deploymentHealth(env);
   if(pathname==='/api/deployment/connections')return deploymentConnections(request,env);

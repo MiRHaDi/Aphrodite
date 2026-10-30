@@ -30,6 +30,7 @@ export async function selectPagesDomain(domain,target,readRecords,ask,context={}
  if(context.zoneName)domainParts(domain,context.zoneName);
  const records=await readRecords(domain);
  if(!records.length)return {domain};
+ if(pagesDnsMatches(records,target)&&!context.promptMatching)return {domain};
  if(!ask){
   if(pagesDnsMatches(records,target))return {domain};
   throw Object.assign(Error('Custom hostname is already configured; choose domain-conflict reuse, new or fail'),{code:'DOMAIN_DECISION_REQUIRED'});

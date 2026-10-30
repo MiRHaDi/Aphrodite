@@ -8,6 +8,11 @@ export interface Env {
   CONNECTION_ENDPOINTS_JSON?: string;
   DB: D1Database;
   ADMIN_TOKEN: string;
+  ADMIN_PASSWORD_HASH?: string;
+  SUBSCRIPTION_ID_MODE?: 'opaque'|'username'|'uuid';
+  SUBSCRIPTION_DOMAIN?: string;
+  SUBSCRIPTION_RESERVED_HOSTS_JSON?: string;
+  WILDCARD_GATEWAY_TOKEN?: string;
   ADMIN_PATH?: string;
   ADMIN_TARGET_PATH?: string;
   PRIVATE_MACHINE_TOKEN_HASH?: string;

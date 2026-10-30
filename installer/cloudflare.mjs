@@ -6,6 +6,7 @@ import {randomUUID} from 'node:crypto';
 import {jsonRequest,required,run,root,verify} from './common.mjs';
 import {lockArtifact} from './address-lock.mjs';
 import {selectPagesDomain,bindPagesDns,domainParts} from './domains.mjs';
+import {configurationHash,migrationHash,restoreEnvironment} from './reconcile.mjs';
 const base='https://api.cloudflare.com/client/v4/';
 export async function deployCloudflare(options,env,artifact){
   report('Configure '+options.provider+' service: '+options.name+' | role: '+(env.DEPLOYMENT_ROLE||'standalone'));
@@ -13,13 +14,14 @@ export async function deployCloudflare(options,env,artifact){
   let account=options.account;
   if(!account){const accounts=(await jsonRequest(base+'accounts',{token})).result;if(accounts.length!==1)throw Error('Specify --account when the token can access zero or multiple accounts');account=accounts[0].id;}
   if(!/^[a-f0-9]{32}$/.test(account))throw Error('Invalid account id');
+  options.account=account;
   const prefix='accounts/'+account+'/';
   const session=options.session,key=account+'/'+options.provider+'/'+options.name;
   const previous=session?.state.services[key];
   const record=previous||{provider:options.provider,account,name:options.name,owner:randomUUID(),migrations:[]};
   const checkpoint=async()=>{if(session){session.state.services[key]=record;await session.save();}};
   const secretName='service-'+record.owner;
-  if(previous){const saved=await session.secret(secretName);if(saved)Object.assign(env,JSON.parse(saved));else throw Error('Saved service credentials are unavailable; restore the system credential store before resuming');}
+  if(previous){const saved=await session.secret(secretName);if(saved)restoreEnvironment(env,JSON.parse(saved),options);else throw Error('Saved service credentials are unavailable; restore the system credential store before resuming');}
   env.APHRODITE_INSTALLATION_ID=record.owner;
   if(session&&!previous){await activity('Save service credentials in system credential storage',()=>session.secret(secretName,JSON.stringify(env)));await checkpoint();}
   const existing=await activity('Check deployment name availability',()=>fetch(base+prefix+(options.provider==='workers'?'workers/scripts/':'pages/projects/')+options.name,{headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(30000)}));
@@ -48,7 +50,7 @@ export async function deployCloudflare(options,env,artifact){
   if(options.domain&&options.provider==='pages'){
     required(options.zone,'--zone for custom domain installation');
     const requested=options.domain;
-    domainSelection=await selectPagesDomain(requested,new URL(serviceUrl).hostname,async host=>(await jsonRequest(base+'zones/'+options.zone+'/dns_records?name='+encodeURIComponent(host),{token})).result,options.askDomain,{zoneName:options.zoneName,projectName:options.domainProjectName||options.name});
+    domainSelection=await selectPagesDomain(requested,new URL(serviceUrl).hostname,async host=>(await jsonRequest(base+'zones/'+options.zone+'/dns_records?name='+encodeURIComponent(host),{token})).result,options.askDomain,{zoneName:options.zoneName,projectName:options.domainProjectName||options.name,promptMatching:options.configure||options['domain-conflict']==='new'});
     options.domain=domainSelection.domain;
     if(options.domain!==requested)report('DNS hostname already in use; selected '+options.domain+' without changing existing records');
     record.customDomain=options.domain;
@@ -57,16 +59,17 @@ export async function deployCloudflare(options,env,artifact){
     await checkpoint();
   }
   report('Bind executable artifact to this service address and its configured custom domain');
-  artifact=await lockArtifact(artifact,[serviceUrl,...(options.domain?['https://'+options.domain]:[])]);
+  artifact=await lockArtifact(artifact,[serviceUrl,...(options.domain?['https://'+options.domain]:[])],{wildcardDomain:options.gatewayWildcardDomain});
   env.PUBLIC_EDGE_HOST=options.domain||new URL(serviceUrl).hostname;env.EDGE_HOST_ALIASES=env.PUBLIC_EDGE_HOST;
+  const desiredConfigurationHash=configurationHash(env),desiredMigrationHash=env.DEPLOYMENT_ROLE==='connection'?'database-free':await migrationHash(artifact.directory);
   if(options.domain)required(options.zone,'--zone for custom domain installation');
   const currentDatabase=options.provider==='workers'?existingConfig?.bindings?.find(b=>b.name==='DB')?.id:existingConfig?.deployment_configs?.production?.d1_databases?.DB?.id;
   if(env.DEPLOYMENT_ROLE==='connection'&&currentDatabase)throw Error('Connection service has an unexpected DB binding; no binding or data was changed');
-  if(existingConfig&&record.verified&&!domainSelection?.replacement&&artifact.manifest?.sha256&&record.buildHash===artifact.manifest.sha256&&record.url===(options.domain?'https://'+options.domain:serviceUrl)&&!options.repair){
+  if(existingConfig&&record.uploaded&&!domainSelection?.replacement&&record.configurationHash===desiredConfigurationHash&&record.migrationHash===desiredMigrationHash&&artifact.manifest?.sha256&&record.buildHash===artifact.manifest.sha256&&record.url===(options.domain?'https://'+options.domain:serviceUrl)&&!options.repair){
     const bound=options.provider==='workers'?existingConfig.bindings?.find(b=>b.name==='DB')?.id:existingConfig.deployment_configs?.production?.d1_databases?.DB?.id;
     if(record.database&&bound!==record.database)throw Error('Current database binding differs from saved installation; no resource was modified');
     report('Completed service found; verify it without uploading again');
-    const url=options.domain?'https://'+options.domain:serviceUrl;await verify(url,env,options.readiness);return {url,database:record.database};
+    const url=options.domain?'https://'+options.domain:serviceUrl;await verify(url,env,record.verified?{attempts:1,delay:0,requiredConsecutive:1,...options.readiness}:options.readiness);record.verified=true;await checkpoint();return {url,providerUrl:serviceUrl,database:record.database,unchanged:true};
   }
   const connection=env.DEPLOYMENT_ROLE==='connection';
   if(connection&&options.databaseId)throw Error('Connection deployments must not have a database');
@@ -95,7 +98,7 @@ export async function deployCloudflare(options,env,artifact){
     if(!['username','uuid','subscription_key','settings_json','revision'].every(column=>columns.includes(column)))throw Error('Existing database schema is incompatible; no migration or overwrite was attempted');
     record.externalDatabase=true;await checkpoint();
   }
-  if(database&&!record.externalDatabase){
+  if(database&&!record.externalDatabase&&record.migrationHash!==desiredMigrationHash){
     await query('CREATE TABLE IF NOT EXISTS aphrodite_installer_migrations(name TEXT PRIMARY KEY)');
     const applied=(await query('SELECT name FROM aphrodite_installer_migrations')).result?.[0]?.results?.map(row=>row.name)||[];
     for(const migration of (await readdir(join(artifact.directory,'migrations'))).filter(n=>n.endsWith('.sql')).sort()){
@@ -110,6 +113,9 @@ export async function deployCloudflare(options,env,artifact){
       record.migrations=[...new Set([...record.migrations,migration])];await checkpoint();
     }
   }
+  if(database&&record.externalDatabase&&env.ADMIN_PASSWORD_HASH&&!record.passwordSchema){
+    await query(await readFile(join(root,'migrations','0010_admin_login_attempts.sql'),'utf8'));record.passwordSchema=true;await checkpoint();
+  }
   if(options.provider==='workers'){
     report('Prepare Worker code ('+Buffer.byteLength(artifact.code)+' bytes), environment bindings and secret bindings');
     const bindings=[...(existingConfig?.bindings||[]).filter(binding=>binding.type!=='secret_text'&&binding.name!=='DB'&&!Object.hasOwn(env,binding.name)),...(database?[{type:'d1',name:'DB',id:database.uuid}]:[]),...Object.entries(env).map(([name,text])=>({type:/TOKEN|PASSWORD|SECRET|ADMIN_PATH|EDGE_CONTROL_PATH|EDGE_PROBE_PATH/.test(name)?'secret_text':'plain_text',name,text:String(text)}))];
@@ -117,7 +123,7 @@ export async function deployCloudflare(options,env,artifact){
     const response=await activity('Upload Worker and bindings',()=>fetch(base+prefix+'workers/scripts/'+options.name,{method:'PUT',headers:{Authorization:'Bearer '+token},body:form,signal:AbortSignal.timeout(120000)}));report('Worker upload | HTTP '+response.status);const data=await response.json();if(data?.errors?.some(e=>Number(e.code)===8000119))throw Error('Cloudflare blocked this deployment (8000119); request provider review. Existing data is preserved.');if(!response.ok||!data.success)throw Error('Worker upload failed; database id: '+(database?.uuid||'none'));
     await jsonRequest(base+prefix+'workers/scripts/'+options.name+'/subdomain',{token,method:'POST',body:{enabled:true,previews_enabled:false}});
     if(options.domain)await jsonRequest(base+prefix+'workers/domains',{token,method:'PUT',body:{environment:'production',hostname:options.domain,service:options.name,zone_id:options.zone}});
-    const url=options.domain?'https://'+options.domain:serviceUrl;record.url=url;record.uploaded=true;record.buildHash=artifact.manifest?.sha256;await checkpoint();await verify(url,env,options.readiness);record.verified=true;await checkpoint();return {url,database:database?.uuid};
+    const url=options.domain?'https://'+options.domain:serviceUrl;record.url=url;record.uploaded=true;record.buildHash=artifact.manifest?.sha256;record.configurationHash=desiredConfigurationHash;record.migrationHash=desiredMigrationHash;if(session)await session.secret(secretName,JSON.stringify(env));await checkpoint();await verify(url,env,options.readiness);record.verified=true;await checkpoint();return {url,providerUrl:serviceUrl,database:database?.uuid};
   }
   report('Create Pages project and bindings');
   const config={production:{compatibility_date:'2026-10-03',compatibility_flags:['global_fetch_strictly_public'],...(database?{d1_databases:{DB:{id:database.uuid}}}:{}),env_vars:Object.fromEntries(Object.entries(env).map(([name,value])=>[name,{type:/TOKEN|PASSWORD|SECRET|ADMIN_PATH|EDGE_CONTROL_PATH|EDGE_PROBE_PATH/.test(name)?'secret_text':'plain_text',value:String(value)}]))}};
@@ -142,5 +148,5 @@ export async function deployCloudflare(options,env,artifact){
       replaceRecord:(id,body)=>jsonRequest(base+'zones/'+options.zone+'/dns_records/'+encodeURIComponent(id),{token,method:'PATCH',body})
     },domainSelection?.replacement);
   }
-  const url=options.domain?'https://'+options.domain:serviceUrl;record.url=url;record.uploaded=true;record.buildHash=artifact.manifest?.sha256;await checkpoint();await verify(url,env,options.readiness);record.verified=true;await checkpoint();return {url,database:database?.uuid};
+  const url=options.domain?'https://'+options.domain:serviceUrl;record.url=url;record.uploaded=true;record.buildHash=artifact.manifest?.sha256;record.configurationHash=desiredConfigurationHash;record.migrationHash=desiredMigrationHash;if(session)await session.secret(secretName,JSON.stringify(env));await checkpoint();await verify(url,env,options.readiness);record.verified=true;await checkpoint();return {url,providerUrl:serviceUrl,database:database?.uuid};
 }

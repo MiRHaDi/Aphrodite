@@ -1,5 +1,5 @@
 import type { Env } from './types';
-import {ensureSubscriptionKey,subscriptionOwner} from './subscription-keys';
+import {ensureSubscriptionKey,subscriptionOwner,subscriptionPathFor,subscriptionUrlFor,subscriptionUuid} from './subscription-keys';
 
 export function blank():Response {
   return new Response(null,{status:404,headers:{'cache-control':'no-store','x-robots-tag':'noindex, nofollow'}});
@@ -12,6 +12,10 @@ export interface Application { fetch(request:Request,env:Env,ctx:ExecutionContex
 export function privateApplication(application:Application):{fetch(request:Request,env:Env,ctx:ExecutionContext):Promise<Response>} {
   return {async fetch(request,env,ctx){
     const url=new URL(request.url),prefix=managementPrefix(env);
+    let aliasHost=url.hostname;
+    if(env.WILDCARD_GATEWAY_TOKEN&&request.headers.get('x-aphrodite-gateway-token')===env.WILDCARD_GATEWAY_TOKEN)aliasHost=request.headers.get('x-aphrodite-original-host')||aliasHost;
+    const alias=env.SUBSCRIPTION_DOMAIN&&aliasHost!==env.PUBLIC_EDGE_HOST&&aliasHost.endsWith('.'+env.SUBSCRIPTION_DOMAIN)?aliasHost.slice(0,-env.SUBSCRIPTION_DOMAIN.length-1):undefined;
+    if(alias&&(alias.includes('.')||prefix&&(url.pathname===prefix||url.pathname.startsWith(prefix+'/'))))return blank();
     if(env.PRIVATE_MACHINE_TOKEN_HASH&&env.PRIVATE_MACHINE_TOKEN_HEADER){
       const token=request.headers.get(env.PRIVATE_MACHINE_TOKEN_HEADER);
       if(token){
@@ -37,7 +41,7 @@ export function privateApplication(application:Application):{fetch(request:Reque
           const html=(await response.text()).replaceAll("PANEL_ORIGIN+'/api/admin/token'","'/panel/api/token'").replaceAll("PANEL_ORIGIN+'/api/'","'/panel/api/'");
           return new Response(html.includes('<head>')?html.replace('<head>','<head>'+injected):injected+html,{status:response.status,headers});
         }
-        if(request.method==='POST'&&['/api/users','/panel/api/user'].includes(url.pathname)&&response.ok&&response.headers.get('content-type')?.includes('application/json')){
+        if(request.method==='POST'&&['/api/users','/api/native/users','/panel/api/user'].includes(url.pathname)&&response.ok&&response.headers.get('content-type')?.includes('application/json')){
           const data=await response.json() as Record<string,unknown>;
           if(typeof data.username==='string'&&/^[A-Za-z0-9_.-]{3,96}$/.test(data.username)){
             if(typeof data.subscription_url==='string'){
@@ -48,7 +52,10 @@ export function privateApplication(application:Application):{fetch(request:Reque
               }
             }
             const supplied=typeof data.subscriptionPath==='string'?new URL(data.subscriptionPath,'https://placeholder.invalid').searchParams.get('token')||undefined:undefined;
-            data.subscriptionPath='/'+await ensureSubscriptionKey(env,data.username,supplied);
+            const token=await ensureSubscriptionKey(env,data.username,supplied);
+            const native=await env.DB.prepare('SELECT uuid FROM native_accounts WHERE username=? COLLATE NOCASE').bind(data.username).first<{uuid:string}>();
+            data.subscriptionPath=subscriptionPathFor(env,data.username,token,native?.uuid);
+            data.subscriptionUrl=subscriptionUrlFor(env,url.origin,data.username,token,native?.uuid);
             if('subscription_url' in data)data.subscription_url='https://'+(env.PUBLIC_EDGE_HOST||new URL(request.url).hostname)+data.subscriptionPath;
           }
           return Response.json(data,{status:response.status,headers:{'cache-control':'no-store'}});
@@ -56,10 +63,14 @@ export function privateApplication(application:Application):{fetch(request:Reque
         return response;
       }catch{return blank();}
     }
-    if((request.method==='GET'||request.method==='HEAD')&&(/^\/[a-f0-9]{64}$/.test(url.pathname)||/^\/feed\/[A-Za-z0-9_.-]{3,96}\/?$/.test(url.pathname))){
+    if((request.method==='GET'||request.method==='HEAD')&&(/^\/[a-f0-9]{64}(?:\/[A-Za-z0-9_.-]{3,96})?$/.test(url.pathname)||/^\/feed\/[A-Za-z0-9_.-]{3,96}\/?$/.test(url.pathname))){
       try {
         const username=await subscriptionOwner(request,env);if(!username)return blank();
-        if(/^\/[a-f0-9]{64}$/.test(url.pathname))url.searchParams.set('token',url.pathname.slice(1));
+        if(alias){
+          if(alias.toLowerCase()!==username.toLowerCase()){const native=await env.DB.prepare('SELECT uuid FROM native_accounts WHERE username=? COLLATE NOCASE').bind(username).first<{uuid:string}>();const key=url.pathname.match(/^\/([a-f0-9]{64})/)?.[1]||url.searchParams.get('token')||'';if(!/^[a-f0-9]{64}$/.test(key)||alias.toLowerCase()!==subscriptionUuid(key,native?.uuid).toLowerCase())return blank();}
+          if(!/^\/[a-f0-9]{64}(?:\/|$)/.test(url.pathname)&&!url.searchParams.has('token'))return blank();
+        }
+        if(/^\/[a-f0-9]{64}(?:\/|$)/.test(url.pathname))url.searchParams.set('token',url.pathname.split('/')[1]!);
         else if(!url.searchParams.has('token')){
           // subscriptionOwner has already checked legacy_allowed. Pass its existing
           // credential internally so migrated native accounts accept frozen links.

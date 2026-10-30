@@ -22,7 +22,7 @@ export async function jsonRequest(url,{token,body,method='GET',headers={},label=
 export function run(command,args,{cwd=root,env=process.env,input,capture=true,label='Run deployment tool'}={}){
   return activity(label,()=>new Promise((resolve,reject)=>{const child=spawn(command,args,{cwd,env,windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});report(label+' | process started');let output='',diagnostic='';child.stdout.on('data',chunk=>{output+=chunk;if(output.length>2*1024*1024)output=output.slice(-2*1024*1024);});child.stderr.on('data',chunk=>{diagnostic=(diagnostic+chunk).slice(-65536);});child.on('error',()=>reject(Error('Unable to start '+command)));child.on('close',code=>{report(label+' | exit code '+code,code===0?'info':'error');code===0?resolve(capture?output:''):reject(Error(/8000119/.test(diagnostic+output)?'Cloudflare blocked this Pages project (8000119); request provider review before deploying again.':'Command failed: '+command+' (exit '+code+')'));});child.stdin.end(input);}));
 }
-export async function verify(url,env,{attempts=24,delay=5000}={}){
+export async function verify(url,env,{attempts=24,delay=5000,requiredConsecutive=3}={}){
   return activity('Verify service readiness',async()=>{
   let consecutive=0;
   for(let i=0;i<attempts;i++){
@@ -54,8 +54,8 @@ export async function verify(url,env,{attempts=24,delay=5000}={}){
       }
     }catch(error){if(error.code==='DEPLOYMENT_DIAGNOSTIC')throw error;status('health-error@'+url,'Health request failed or timed out; retrying','waiting');}
     consecutive=healthy?consecutive+1:0;
-    status('health-count@'+url,'Healthy checks: '+consecutive+'/3',healthy?'done':'waiting');
-    if(consecutive>=3)return {verified:true};
+    status('health-count@'+url,'Healthy checks: '+consecutive+'/'+requiredConsecutive,healthy?'done':'waiting');
+    if(consecutive>=requiredConsecutive)return {verified:true};
     if(i+1<attempts){await new Promise(resolve=>setTimeout(resolve,delay));}
   }
   throw Error('Service verification failed: the uploaded service is not healthy. Saved resources are preserved. Resume this installation to retry or repair its bindings and database; check Cloudflare runtime logs for repeated HTTP 500.');

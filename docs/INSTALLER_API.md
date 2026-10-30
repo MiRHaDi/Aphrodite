@@ -42,6 +42,8 @@ Another program can send the JSON envelope to `--config -` over stdin. This enve
 
 Custom domain policy is explicit for unattended jobs:
 
+Additional saved-install options are `configure` (review choices), `subscription-id` (`opaque`, `username`, `uuid`), `wildcard-domain`, `wildcard-tls-ready` and `set-password`. Supply `ADMIN_PASSWORD` only through the environment/stdin/HTTP environment object. See [incremental installs and subscription hosts](INCREMENTAL_INSTALL.md) for recovery, password/session behavior and wildcard DNS/TLS constraints.
+
 Cloudflare callers can specify `base-domain` (the DNS zone name) and `subdomain` separately instead of a full `domain`. Both choices are saved for interactive resume. Conflict resolution only changes a subdomain within that selected zone. MX/TXT records are preserved and are not connection targets.
 
 | `domain-conflict` | Behavior |

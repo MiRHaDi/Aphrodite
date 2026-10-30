@@ -16,6 +16,8 @@ jobs:
       - run: npm ci --ignore-scripts --no-fund --no-audit
       - run: node node_modules/vitest/vitest.mjs run test/installer-session.test.mjs test/installer-resume.test.mjs test/installer-wizard.test.mjs test/installer-ui.test.mjs test/english-installer.test.mjs test/installer-api.test.mjs --maxWorkers=1
       - run: npm run test:baseline-ui
+      - run: node test/integration/installer_features.mjs
+      - run: node test/integration/installer_features_edge.mjs
   test:
     runs-on: ubuntu-latest
     steps:
@@ -31,6 +33,8 @@ jobs:
       - run: npm run pages:build
       - run: node test/integration/portable_artifact.mjs node
       - run: node test/integration/portable_artifact.mjs workers
+      - run: node test/integration/installer_features.mjs
+      - run: node test/integration/installer_features_edge.mjs
       - run: npm run test:baseline-ui
       - uses: actions/upload-artifact@v4
         with:

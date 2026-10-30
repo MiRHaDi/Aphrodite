@@ -9,6 +9,7 @@ import {deployRender} from './render.mjs';
 import {deploySSH} from './ssh.mjs';
 import {deploySplit} from './topology.mjs';
 import {validateOptions} from './options.mjs';
+import {deployWildcardGateway,wildcardReservedHosts} from './wildcard.mjs';
 let running=false;
 export function redact(message,values){
  let result=String(message);
@@ -36,6 +37,7 @@ export async function runInstallation(input,{ui,interactive=false,environment=pr
   const {options,env,session,provider,topology}=prepared;
   secrets.push(options.token,options.password,...(options.targets||[]).map(item=>item.token),...Object.entries(env).filter(([key])=>/TOKEN|SECRET|PASSWORD|ADMIN_PATH|EDGE_CONTROL_PATH|EDGE_PROBE_PATH/.test(key)).map(([,value])=>value));
   onPrepared?.(prepared);
+  if(options.wildcardDomain&&!values.preview&&provider!=='bundle')env.SUBSCRIPTION_RESERVED_HOSTS_JSON=JSON.stringify(await wildcardReservedHosts(options));
   let result;
   if(topology==='split'){
    if(!['workers','pages'].includes(provider))throw Error('Split topology currently supports Workers and Pages');
@@ -52,6 +54,7 @@ export async function runInstallation(input,{ui,interactive=false,environment=pr
     result={...await activity('Deploy '+provider,()=>deployers[provider](options,env,artifact)),verified:true,verificationScope:'private-api-and-empty-root',transportVerified:false,buildId:artifact.manifest.buildId};
    }
   }
+  if(options.wildcardDomain&&!values.preview&&provider!=='bundle')result={...result,wildcard:await deployWildcardGateway(options,env,result)};
   if(session&&!values.preview&&provider!=='bundle'){session.state.status='verified';await session.save();}
   if(values['include-credentials']&&!values.preview&&provider!=='bundle')result={...result,credentials:{administratorPath:env.ADMIN_PATH,administratorToken:env.ADMIN_TOKEN}};
   return result;
