@@ -30,7 +30,8 @@ export async function registerConnections(central,env,endpoints){
 export async function deploySplit(options,env,{preview=false,deploy=deployCloudflare,register=registerConnections}={}){
  const plan=splitPlan(options);
  report('Topology: one management service and '+plan.connections.length+' database-free connection services');
- const management=await activity('Build management service',()=>buildArtifact('workers',{role:'management'})),connection=await activity('Build connection service',()=>buildArtifact('workers',{role:'connection'}));
+ const identity=(role)=>[options.name,options.domain||'',options.provider,role].join('|');
+ const management=await activity('Build management service',()=>buildArtifact('workers',{role:'management',identity:identity('management')})),connection=await activity('Build connection service',()=>buildArtifact('workers',{role:'connection',identity:identity('connection')}));
  if(preview){report('Preview complete; no cloud resources were changed','done');return {topology:'split',plan,artifacts:[management.manifest,connection.manifest],mutations:false};}
  const token=options.token;let account=options.account;
  const resolveAccount=async token=>{const accounts=(await jsonRequest('https://api.cloudflare.com/client/v4/accounts',{token})).result;if(accounts.length!==1)throw Error('Specify the Cloudflare account ID');return accounts[0].id;};

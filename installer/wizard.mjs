@@ -97,7 +97,9 @@ export async function prepareInstall(values,ui,{sessionFactory=openSession,inter
  if(session&&Object.keys(session.state.services).length&&!administrator)throw Error('Saved administrator credentials are unavailable. Restore the system credential store before resuming');
  if(!interactive&&!preview&&provider!=='bundle'&&!administrator&&(!environment.ADMIN_TOKEN||!(values['admin-path']||environment.ADMIN_PATH)))throw Error('Unattended first installation requires ADMIN_TOKEN and ADMIN_PATH');
  if(values['no-save']&&!preview&&['workers','pages'].includes(provider)&&(!environment.ADMIN_TOKEN||!(values['admin-path']||environment.ADMIN_PATH)))throw Error('--no-save requires ADMIN_TOKEN and ADMIN_PATH so recovery credentials are not lost');
- const env=configuration({...options,adminPath:administrator?.path||values['admin-path']||environment.ADMIN_PATH,adminToken:administrator?.token||environment.ADMIN_TOKEN});
+ const buildIdentity=[options.name,options.domain||'',options.provider,options.topology].join('|');
+ options.buildIdentity=buildIdentity;
+ const env=configuration({...options,buildIdentity,adminPath:administrator?.path||values['admin-path']||environment.ADMIN_PATH,adminToken:administrator?.token||environment.ADMIN_TOKEN});
  if(administratorPasswordHash)env.ADMIN_PASSWORD_HASH=administratorPasswordHash;
  env.SUBSCRIPTION_ID_MODE=options.subscriptionId;
  if(options.wildcardDomain){

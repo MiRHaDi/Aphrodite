@@ -10,7 +10,7 @@ export function name(value){if(!/^[a-z][a-z0-9-]{2,48}$/.test(value))throw Error
 export function configuration(options){
   const adminPath=options.adminPath||randomUUID(),adminToken=options.adminToken||randomBytes(32).toString('base64url');
   if(!/^[A-Za-z0-9_-]{16,128}$/.test(adminPath)||adminToken.length<24)throw Error('Invalid administrator path or token');
-  return {ADMIN_PATH:adminPath,ADMIN_TOKEN:adminToken,APHRODITE_BUILD_NONCE:randomBytes(16).toString('hex'),NATIVE_ENABLED:'true',CONTROL_PLANE_ORIGIN:options.origin||'',PUBLIC_EDGE_HOST:options.domain||'',PORT:'8080',DATA_DIR:'/data',...options.variables};
+  return {ADMIN_PATH:adminPath,ADMIN_TOKEN:adminToken,APHRODITE_BUILD_NONCE:randomBytes(16).toString('hex'),APHRODITE_BUILD_IDENTITY:options.buildIdentity||'',NATIVE_ENABLED:'true',CONTROL_PLANE_ORIGIN:options.origin||'',PUBLIC_EDGE_HOST:options.domain||'',PORT:'8080',DATA_DIR:'/data',...options.variables};
 }
 export async function jsonRequest(url,{token,body,method='GET',headers={},label=requestLabel(url,method)}={}){
   return activity(label,async()=>{

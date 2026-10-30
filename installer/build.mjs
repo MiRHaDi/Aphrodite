@@ -13,7 +13,7 @@ export async function compileSource(source){
   const result=await minify(source,{minify:true,format:'esm',target:'es2022',legalComments:'eof'});
   return {code:result.code,id:randomBytes(12).toString('hex')};
 }
-export async function buildArtifact(platform,{out,transform=true,role='standalone',profile='current'}={}){
+export async function buildArtifact(platform,{out,transform=true,role='standalone',profile='current',identity=''}={}){
   if(!['current','working-baseline'].includes(profile))throw Error('Invalid build profile');
   if(profile==='working-baseline'){
     if(!['workers','pages'].includes(platform)||role!=='standalone')throw Error('Working baseline requires a standalone Workers or Pages bundle');
@@ -24,7 +24,8 @@ export async function buildArtifact(platform,{out,transform=true,role='standalon
   if(!['standalone','management','connection','gateway','database'].includes(role))throw Error('Invalid deployment role');
   if(platform==='node'&&!['standalone','management','database'].includes(role))throw Error('This deployment role requires Workers or Pages');
   const node=platform==='node';
-  const fingerprint=await sourceFingerprint(root,{platform,role,transform,node:process.versions.node});
+  const identityKey=createHash('sha256').update(String(identity||'')).digest('hex').slice(0,32);
+  const fingerprint=await sourceFingerprint(root,{platform,role,transform,identity:identityKey,node:process.versions.node});
   const cacheDirectory=join(root,'.artifacts','build-cache',fingerprint),filename=node?'server.mjs':'worker.mjs';
   if(!out){const cached=await cachedArtifact(cacheDirectory,filename,fingerprint);if(cached){report('Artifact ready | unchanged source; reuse cached '+role+' bundle','done');return cached;}}
   const plugins=transform?[{name:'private-ui-build',setup(api){api.onLoad({filter:/[\\/]src[\\/]panel\.ts$/},async()=>{
@@ -43,7 +44,7 @@ export async function buildArtifact(platform,{out,transform=true,role='standalon
   report('Write artifact, database migrations and license files');
   await writeFile(join(directory,filename),variant.code);
   await cp(join(root,'migrations'),join(directory,'migrations'),{recursive:true});
-  const manifest={buildId:variant.id,sourceFingerprint:fingerprint,platform,role,transformed:transform,sha256:createHash('sha256').update(variant.code).digest('hex'),bytes:Buffer.byteLength(variant.code),gzipBytes:gzipSync(variant.code).length,version:JSON.parse(await readFile(join(root,'package.json'),'utf8')).version};
+  const manifest={buildId:variant.id,buildIdentity:identityKey,sourceFingerprint:fingerprint,platform,role,transformed:transform,sha256:createHash('sha256').update(variant.code).digest('hex'),bytes:Buffer.byteLength(variant.code),gzipBytes:gzipSync(variant.code).length,version:JSON.parse(await readFile(join(root,'package.json'),'utf8')).version};
   manifest.migrationsHash=await migrationHash(directory);
   await writeFile(join(directory,'manifest.json'),JSON.stringify(manifest,null,2));
   await cp(join(root,'LICENSE'),join(directory,'LICENSE'));await cp(join(root,'THIRD_PARTY_NOTICES.md'),join(directory,'THIRD_PARTY_NOTICES.md'));

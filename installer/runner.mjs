@@ -53,7 +53,8 @@ export async function runInstallation(input,{ui,interactive=false,environment=pr
    const role=env.DEPLOYMENT_ROLE||'standalone';
    if(!['standalone','management','database'].includes(role))throw Error('Use split topology for connection nodes');
    if(env.DATA_CONTROL_URL&&role!=='management')throw Error('Remote database clients require management role');
-   const artifact=await activity('Build deployment bundle',()=>build(platform,{profile,role}));
+   const identity=[options.name,options.domain||'',options.provider,role].join('|');
+   const artifact=await activity('Build deployment bundle',()=>build(platform,{profile,role,identity}));
    if(values.preview||provider==='bundle')result={provider,name:options.name,artifact:artifact.directory,...artifact.manifest,mutations:false};
    else{
     interfaceUi.step('Provision resources and verify readiness');
