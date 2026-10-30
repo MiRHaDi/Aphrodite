@@ -9,11 +9,11 @@ export function splitPlan(options){
  const prefix=name(options.name).slice(0,38),connections=[];
  const targets=options.targets||[{id:'primary',connections:options.connections??2,providers:options.connectionProviders||'workers,pages',account:options.account,token:options.token}];
  for(const target of targets){
-  const count=Number(target.connections??2),providers=(target.providers||'workers,pages').split(',');
+  const count=Number(target.connections??2),providers=(target.providers||'workers,pages').split(','),countries=(target.countries||options.connectionCountries||'smart,us,nl,de,sg,tr,ir').split(',').map(v=>v.trim()).filter(Boolean),protocols=(target.protocols||options.connectionProtocols||'VLESS · WS').split(',').map(v=>v.trim()).filter(Boolean);
   if(!Number.isInteger(count)||count<1||count>8)throw Error('--connections must be 1 through 8 per account profile');
   if(!providers.length||providers.some(p=>!['workers','pages'].includes(p)))throw Error('Connection providers must be workers,pages');
   if(!/^[a-z0-9-]{1,8}$/.test(target.id||'primary'))throw Error('Invalid profile identifier');
-  for(let i=0;i<count;i++)connections.push({name:(target.id&&target.id!=='primary'?prefix.slice(0,30)+'-'+target.id:prefix)+'-connect-'+(i+1),provider:providers[i%providers.length],profile:target.id||'primary'});
+  for(let i=0;i<count;i++)connections.push({name:(target.id&&target.id!=='primary'?prefix.slice(0,30)+'-'+target.id:prefix)+'-connect-'+(i+1),provider:providers[i%providers.length],profile:target.id||'primary',country:countries[i%countries.length]||'smart',protocols});
  }
  if(connections.length>64)throw Error('A shared subscription supports at most 64 connection services');
  return {management:{name:prefix+'-control',provider:options.provider},connections};
@@ -64,7 +64,7 @@ export async function deploySplit(options,env,{preview=false,deploy=deployCloudf
   const domain=options.domain&&profile.account===account?connectionDomain(options.domain,index,item.profile):undefined;
   const result=await deploy({...options,...item,variables:routing,adminPasswordHash:undefined,account:profile.account,token:profile.token,domain,zone:domain?options.zone:undefined,databaseId:undefined},edgeEnv,connection);
   edges.push(result);const host=new URL(result.url).hostname;
-  await register(central,centralEnv,[{address:host,sni:host,host}]);
+  await register(central,centralEnv,[{address:host,sni:host,host,id:item.name,name:item.name,country:item.country,protocols:item.protocols}]);
  }
  return {topology:'split',url:central.url,providerUrl:central.providerUrl,database:central.database,connections:edges.map(e=>({url:e.url})),verified:true,transportVerified:false};
 }

@@ -1,6 +1,6 @@
 import type {Env} from './types';
 import {json,error} from './responses';
-type Endpoint={address:string;sni:string;host:string};
+type Endpoint={address:string;sni:string;host:string;id?:string;name?:string;country?:string;protocols?:string[]};
 const hostname=(value:unknown):value is string=>typeof value==='string'&&value.length<=253&&/^(?=.{1,253}$)[a-z0-9]+(?:[.-][a-z0-9]+)*$/i.test(value);
 function valid(value:unknown):value is Endpoint{return Boolean(value&&typeof value==='object'&&['address','sni','host'].every(key=>hostname((value as Record<string,unknown>)[key])));}
 export async function connectionRegistry(env:Env):Promise<Endpoint[]>{

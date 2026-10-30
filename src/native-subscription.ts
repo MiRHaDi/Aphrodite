@@ -22,6 +22,14 @@ export function countryLabel(country:string):string{
  const name=new Intl.DisplayNames(['en'],{type:'region'}).of(code)||code;
  return flag+' '+name;
 }
+function escapeHtml(value:string):string{return value.replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]||char));}
+function browserPage(request:Request,account:NativeAccount,status:{usedBytes:number;requests:number},settings:ReturnType<typeof settingsFor>,links:string[]):Response {
+ const url=new URL(request.url),base=url.origin+url.pathname+'?token='+encodeURIComponent(url.searchParams.get('token')||'');
+ const rows:Array<[string,string]>=[['کاربر',account.username],['وضعیت',account.enabled?'فعال':'غیرفعال'],['مصرف',String(status.usedBytes)+' bytes'],['درخواست‌ها',String(status.requests)],['انقضا',account.expires_at?new Date(account.expires_at*1000).toISOString():'بدون انقضا']];
+ const options:Array<[string,string]>=[['raw','متن خام'],['base64','Base64'],['clash','Clash/Mihomo'],['sing-box','Sing-box'],['xray','Xray']];
+ const html='<!doctype html><html lang="fa" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Aphrodite · '+escapeHtml(account.username)+'</title><style>body{font-family:system-ui;background:#101322;color:#f5f7ff;max-width:760px;margin:40px auto;padding:20px}main{background:#1a2035;border:1px solid #303a5d;border-radius:18px;padding:24px}h1{margin-top:0}table{width:100%;border-spacing:0}td{padding:10px;border-bottom:1px solid #303a5d}a{display:inline-block;color:#9de8dc;background:#263957;padding:10px 14px;border-radius:10px;margin:6px;text-decoration:none;direction:ltr}.links{margin-top:18px}</style><main><h1>وضعیت اشتراک Aphrodite</h1><table>'+rows.map(r=>'<tr><td>'+escapeHtml(r[0])+'</td><td dir="ltr">'+escapeHtml(r[1])+'</td></tr>').join('')+'</table><p>لینک اصلی را در برنامهٔ سازگار وارد کنید؛ قالب مناسب را انتخاب کنید.</p><div class="links"><a href="'+escapeHtml(base)+'">لینک اشتراک</a>'+options.map(([fmt,label])=>'<a href="'+escapeHtml(base+'&format='+fmt)+'">'+label+'</a>').join('')+'</div><p>تعداد کانفیگ‌های فعلی: '+links.length+' · سقف داده: '+(settings.dataLimitBytes?settings.dataLimitBytes+' bytes':'نامحدود')+'</p></main></html>';
+ return new Response(html,{status:200,headers:{'content-type':'text/html; charset=utf-8','cache-control':'private, no-store','x-content-type-options':'nosniff'}});
+}
 export function configuredCountries(routes:Record<string,unknown[]>,relay:boolean):string[]{
  if(!relay)return ['smart'];
  return ['smart',...Object.keys(routes).filter(path=>/^\/edge\/(?:[a-z]{2}|turkey)$/.test(path)&&routes[path]?.length).map(path=>path.slice(6)).sort()];
@@ -51,6 +59,8 @@ export async function nativeSubscription(request:Request,env:Env,account:NativeA
   const endpoints=[endpoint,...subscriptionEndpoints(edgeEnv).filter(e=>e.address!==endpoint.address||e.sni!==endpoint.sni||e.host!==endpoint.host)];
   const links=endpoints.flatMap((e,index)=>nativeLinks(account,e.host,Date.now(),countries,e).map(link=>{const u=new URL(link);u.hash=encodeURIComponent(decodeURIComponent(u.hash.slice(1))+' · '+(index+1));return u.href;}));
   const client=clientProfile(request);
+  const accepts=(request.headers.get('accept')||'').toLowerCase(),agent=(request.headers.get('user-agent')||'').toLowerCase();
+  if(accepts.includes('text/html')&&client.family==='generic'&&!/curl|wget|python|go-http|axios|node-fetch/.test(agent))return browserPage(request,account,status,settings,links);
   const format=client.format;
   let body='';
   if(format==='clash'){

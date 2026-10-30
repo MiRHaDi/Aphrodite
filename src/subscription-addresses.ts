@@ -1,7 +1,7 @@
 import { parse, stringify } from 'yaml';
 import type { Env } from './types';
 
-export interface EdgeEndpoint { address: string; sni: string; host: string }
+export interface EdgeEndpoint { address: string; sni: string; host: string; id?: string; name?: string; country?: string; protocols?: string[] }
 const hostname=(value:unknown):value is string=>typeof value==='string'&&value.length<=253&&/^(?=.{1,253}$)[a-z0-9]+(?:[.-][a-z0-9]+)*$/i.test(value);
 function address(value:unknown):value is string {
   if(hostname(value))return true;
@@ -9,10 +9,11 @@ function address(value:unknown):value is string {
   try{return value.includes(':')&&new URL('https://['+value.replace(/^\[|\]$/g,'')+']/').hostname.startsWith('[')}catch{return false}
 }
 export function subscriptionEndpoints(env:Env):EdgeEndpoint[] {
-  const primary=hostname(env.PUBLIC_EDGE_HOST)?env.PUBLIC_EDGE_HOST:'smart.dr-mirhadi.ir';
+  const primaries=(env.PUBLIC_EDGE_HOSTS||env.PUBLIC_EDGE_HOST||'smart.dr-mirhadi.ir').split(',').map((v:string)=>v.trim()).filter(hostname);
+  const primary=primaries[0]||'smart.dr-mirhadi.ir';
   let pool:EdgeEndpoint[]=[];
-  try{const input=JSON.parse(env.EDGE_ENDPOINTS_JSON||'[]');if(Array.isArray(input))pool=input.slice(0,64).filter((e:EdgeEndpoint)=>e&&address(e.address)&&hostname(e.sni)&&hostname(e.host));}catch{}
-  if(!pool.length)return [{address:primary,sni:primary,host:primary}];
+  try{const input=JSON.parse(env.EDGE_ENDPOINTS_JSON||'[]');if(Array.isArray(input))pool=input.slice(0,64).filter((e:EdgeEndpoint)=>e&&address(e.address)&&hostname(e.sni)&&hostname(e.host)).map((e:EdgeEndpoint)=>({...e,country:typeof e.country==='string'?e.country.toLowerCase():undefined,protocols:Array.isArray(e.protocols)?e.protocols.filter(p=>typeof p==='string').slice(0,8):[]}));}catch{}
+  if(!pool.length)return primaries.map((host:string,index:number)=>({address:host,sni:host,host,id:'domain-'+(index+1),name:host,country:'smart',protocols:['VLESS · WS']}));
   return pool.filter((item,index)=>pool.findIndex(other=>other.address===item.address&&other.sni===item.sni&&other.host===item.host)===index);
 }
 export function subscriptionEndpoint(env:Env,username:string,now=Date.now()):EdgeEndpoint {

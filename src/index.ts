@@ -3,6 +3,7 @@ import { createUser, overview, users, nodes } from "./control-plane";
 import { PANEL_HTML } from "./panel";
 import { error, json, securityHeaders, text } from "./responses";
 import { subscription, usernameFromPath } from "./subscription";
+import { subscriptionOwner } from './subscription-keys';
 import { tunnel } from "./tunnel";
 import { tunnelMap } from "./config";
 import type { Env } from "./types";
@@ -51,6 +52,10 @@ export default {
     if (request.method !== "GET" && request.method !== "HEAD") return text("Method not allowed", 405, { allow: "GET, HEAD" });
     const username = usernameFromPath(url.pathname);
     if (username) return subscription(request, env, username, ctx);
+    // Opaque token URLs (including configured per-user subscription subdomains)
+    // resolve through the same authenticated subscription path.
+    const owner = await subscriptionOwner(request, env);
+    if (owner) return subscription(request, env, owner, ctx);
     if (url.pathname in tunnelMap(env)) return tunnel(request, env, url.pathname);
     if (url.pathname === "/healthz") return json({ ok: true, service: "aphrodite-edge", version: "2.0.0-beta.1", routes: Object.keys(tunnelMap(env)).length });
     return error("Not found", 404);
