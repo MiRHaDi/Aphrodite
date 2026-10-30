@@ -15,6 +15,7 @@ import { cloudflareUsage } from './native-metrics';
 import {deploymentConnections,deploymentHealth} from './deployment-registry';
 import {adminSession} from './admin-session';
 import {versionInfo} from './version';
+import {nativeAppearance} from './native-appearance';
 
 async function adminApi(request: Request, env: Env, pathname: string): Promise<Response> {
   if(pathname==='/api/session')return adminSession(request,env);
@@ -25,6 +26,7 @@ async function adminApi(request: Request, env: Env, pathname: string): Promise<R
   if(pathname==='/api/version')return versionInfo(request,env);
   if (pathname.startsWith('/api/native/') && !nativeEnabled(env)) return error('Native core is not enabled',503);
   if (pathname === '/api/native/settings') return nativeSettings(request,env);
+  if (pathname === '/api/native/appearance') return nativeAppearance(request,env);
   if (pathname === '/api/native/backup' && request.method === 'GET') return nativeBackup(env);
   if (pathname === '/api/native/import' && request.method === 'POST') return importNative(request,env);
   if (pathname === '/api/native/test-proxy' && request.method === 'POST') return testNativeProxy(request,env);

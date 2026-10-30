@@ -8,6 +8,7 @@ import { text } from './responses';
 import type { Env } from './types';
 import {tunnelMap} from './config';
 import qrcode from 'qrcode-generator';
+import {subscriptionAppearance} from './native-appearance';
 
 export function selectedAddresses(account:NativeAccount,host:string,now=Date.now()):string[]{
   const settings=settingsFor(account),pool=[...new Set(settings.addresses)];if(!pool.length)return [host];
@@ -27,11 +28,11 @@ export const countryCodes=['af','al','dz','ad','ao','ag','ar','am','au','at','az
 export function orderedCountries(values:string[]):string[]{return [...new Set(values.map(value=>value.toLowerCase()))].sort((a,b)=>a==='smart'?-1:b==='smart'?1:countryLabel(a).localeCompare(countryLabel(b),'fa'));}
 export function readableBytes(value:number):string{if(!Number.isFinite(value)||value<0)return '—';const units=['B','KB','MB','GB','TB'];let index=0,amount=value;while(amount>=1024&&index<units.length-1){amount/=1024;index++;}return new Intl.NumberFormat('fa-IR',{maximumFractionDigits:index?2:0}).format(amount)+' '+units[index];}
 function escapeHtml(value:string):string{return value.replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]||char));}
-function browserPage(request:Request,account:NativeAccount,status:{usedBytes:number;requests:number},settings:ReturnType<typeof settingsFor>,links:string[]):Response {
+function browserPage(request:Request,account:NativeAccount,status:{usedBytes:number;requests:number},settings:ReturnType<typeof settingsFor>,links:string[],appearance:Awaited<ReturnType<typeof subscriptionAppearance>>):Response {
  const url=new URL(request.url),token=url.searchParams.get('token'),base=url.origin+url.pathname+(token?'?token='+encodeURIComponent(token):'');
  const rows:Array<[string,string]>=[['کاربر',account.username],['وضعیت',account.enabled?'فعال':'غیرفعال'],['مصرف',readableBytes(status.usedBytes)+(settings.dataLimitBytes?' از '+readableBytes(settings.dataLimitBytes):' · نامحدود')],['درخواست‌ها',new Intl.NumberFormat('fa-IR').format(status.requests)],['انقضا',account.expires_at?new Date(account.expires_at*1000).toLocaleDateString('fa-IR'):'بدون انقضا']];
  const options:Array<[string,string]>=[['raw','متن خام'],['base64','Base64'],['clash','Clash/Mihomo'],['sing-box','Sing-box'],['xray','Xray']];
- const title=settings.pageTitle.trim()||'وضعیت اشتراک Aphrodite',message=settings.pageMessage.trim()||'لینک اصلی را در برنامهٔ سازگار وارد کنید؛ قالب مناسب را انتخاب کنید.',accent=settings.pageAccent;
+ const {title,message,accent}=appearance;
  const html='<!doctype html><html lang="fa" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+escapeHtml(title)+'</title><style>:root{--accent:'+escapeHtml(accent)+'}*{box-sizing:border-box}body{font-family:Vazirmatn,IRANSans,Segoe UI,Tahoma,sans-serif;background:radial-gradient(circle at top right,#28214b,#0d1020 62%);color:#f8f8ff;max-width:820px;margin:0 auto;padding:28px 18px;line-height:1.7}main{background:#151a30e8;border:1px solid #ffffff1c;box-shadow:0 25px 80px #0006;border-radius:24px;padding:clamp(20px,5vw,42px)}h1{font-size:clamp(24px,4vw,35px);margin:0 0 6px;color:white}.lead{color:#c7c9df;margin:0 0 24px}table{width:100%;border-collapse:separate;border-spacing:0 8px}td{padding:13px 16px;background:#0c1020;border-block:1px solid #ffffff10}td:first-child{border-radius:0 12px 12px 0;color:#aeb3cc;width:36%}td:last-child{border-radius:12px 0 0 12px;font-variant-numeric:tabular-nums;direction:auto}.links{display:flex;flex-wrap:wrap;gap:9px;margin-top:26px}a{display:inline-flex;align-items:center;justify-content:center;color:white;background:linear-gradient(135deg,var(--accent),#4c9bff);padding:11px 14px;border-radius:12px;text-decoration:none;font-weight:650;box-shadow:0 8px 22px color-mix(in srgb,var(--accent),transparent 65%)}a:not(:first-child){background:#222943;color:#e3e7ff;box-shadow:none}.qr{display:block;background:white;border-radius:16px;padding:12px;width:min(220px,100%);margin:30px auto 15px}.foot{color:#aeb3cc;text-align:center;font-size:14px}</style><main><h1>'+escapeHtml(title)+'</h1><p class="lead">'+escapeHtml(message)+'</p><table>'+rows.map(r=>'<tr><td>'+escapeHtml(r[0])+'</td><td>'+escapeHtml(r[1])+'</td></tr>').join('')+'</table><div class="links"><a href="'+escapeHtml(base)+'">لینک اشتراک</a>'+options.map(([fmt,label])=>'<a href="'+escapeHtml(base+'&format='+fmt)+'">'+label+'</a>').join('')+'</div><img class="qr" alt="Subscription QR" src="'+escapeHtml(base+'&format=qr')+'"><p class="foot">'+new Intl.NumberFormat('fa-IR').format(links.length)+' کانفیگ فعال · سقف داده: '+(settings.dataLimitBytes?readableBytes(settings.dataLimitBytes):'نامحدود')+'</p></main></html>';
  return new Response(html,{status:200,headers:{'content-type':'text/html; charset=utf-8','cache-control':'private, no-store','x-content-type-options':'nosniff'}});
 }
@@ -70,7 +71,7 @@ export async function nativeSubscription(request:Request,env:Env,account:NativeA
   const client=clientProfile(request);
   const accepts=(request.headers.get('accept')||'').toLowerCase(),agent=(request.headers.get('user-agent')||'').toLowerCase();
   if(url.searchParams.get('format')==='qr'){const qr=qrcode(0,'M');qr.addData(url.origin+url.pathname+(url.search||''));qr.make();return new Response(qr.createSvgTag({cellSize:5,margin:8,scalable:true}),{headers:{'content-type':'image/svg+xml','cache-control':'private, no-store','x-content-type-options':'nosniff'}});}
-  if(accepts.includes('text/html')&&client.family==='generic'&&!/curl|wget|python|go-http|axios|node-fetch/.test(agent))return browserPage(request,account,status,settings,links);
+  if(accepts.includes('text/html')&&client.family==='generic'&&!/curl|wget|python|go-http|axios|node-fetch/.test(agent))return browserPage(request,account,status,settings,links,await subscriptionAppearance(env));
   const format=client.format;
   let body='';
   if(format==='clash'){
