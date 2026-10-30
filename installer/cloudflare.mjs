@@ -5,6 +5,7 @@ import {tmpdir} from 'node:os';
 import {randomUUID} from 'node:crypto';
 import {jsonRequest,required,run,root,verify} from './common.mjs';
 import {lockArtifact} from './address-lock.mjs';
+import {availablePagesDomain} from './domains.mjs';
 const base='https://api.cloudflare.com/client/v4/';
 export async function deployCloudflare(options,env,artifact){
   report('Configure '+options.provider+' service: '+options.name+' | role: '+(env.DEPLOYMENT_ROLE||'standalone'));
@@ -38,6 +39,13 @@ export async function deployCloudflare(options,env,artifact){
   let serviceUrl;
   if(options.provider==='workers'){const subdomain=(await jsonRequest(base+prefix+'workers/subdomain',{token})).result.subdomain;serviceUrl='https://'+options.name+'.'+subdomain+'.workers.dev';}
   else serviceUrl='https://'+options.name+'.pages.dev';
+  if(options.domain&&options.provider==='pages'){
+    required(options.zone,'--zone for custom domain installation');
+    const requested=options.domain;
+    options.domain=await availablePagesDomain(record.customDomain||requested,new URL(serviceUrl).hostname,async host=>(await jsonRequest(base+'zones/'+options.zone+'/dns_records?name='+encodeURIComponent(host),{token})).result);
+    if(options.domain!==requested)report('DNS hostname already in use; selected '+options.domain+' without changing existing records');
+    record.customDomain=options.domain;await checkpoint();
+  }
   report('Bind executable artifact to this service address and its configured custom domain');
   artifact=await lockArtifact(artifact,[serviceUrl,...(options.domain?['https://'+options.domain]:[])]);
   env.PUBLIC_EDGE_HOST=options.domain||new URL(serviceUrl).hostname;env.EDGE_HOST_ALIASES=env.PUBLIC_EDGE_HOST;
@@ -119,7 +127,7 @@ export async function deployCloudflare(options,env,artifact){
     if(!domains.some(item=>item.name===options.domain))await jsonRequest(base+prefix+'pages/projects/'+options.name+'/domains',{token,method:'POST',body:{name:options.domain}});
     const records=(await jsonRequest(base+'zones/'+options.zone+'/dns_records?name='+encodeURIComponent(options.domain),{token})).result;
     const target=new URL(serviceUrl).hostname;
-    if(records.some(record=>record.type!=='CNAME'||record.content!==target))throw Error('Custom domain points elsewhere; no existing DNS record was overwritten');
+    if(records.some(record=>record.type!=='CNAME'||String(record.content).toLowerCase().replace(/\.$/,'')!==target.toLowerCase()))throw Error('DNS changed during installation; resume to select an available hostname. No existing DNS record was overwritten');
     if(!records.length)await jsonRequest(base+'zones/'+options.zone+'/dns_records',{token,method:'POST',body:{type:'CNAME',name:options.domain,content:target,proxied:true}});
   }
   const url=options.domain?'https://'+options.domain:serviceUrl;record.url=url;record.uploaded=true;record.buildHash=artifact.manifest?.sha256;await checkpoint();await verify(url,env,options.readiness);record.verified=true;await checkpoint();return {url,database:database?.uuid};

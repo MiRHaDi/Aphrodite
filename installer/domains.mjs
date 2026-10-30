@@ -1,4 +1,13 @@
 import {jsonRequest} from './common.mjs';
+export async function availablePagesDomain(domain,target,readRecords){
+ const original=normalizeDomain(domain),parts=original.split('.'),label=parts.shift(),suffix=parts.join('.');
+ for(let attempt=0;attempt<50;attempt++){
+  const candidate=attempt?label.slice(0,59)+'-'+(attempt+1)+'.'+suffix:original;
+  const records=await readRecords(candidate);
+  if(records.every(record=>record.type==='CNAME'&&String(record.content).toLowerCase().replace(/\.$/,'')===target.toLowerCase().replace(/\.$/,'')))return candidate;
+ }
+ throw Error('No free custom hostname found after 50 DNS checks; existing records were preserved');
+}
 export function normalizeDomain(value){
  const host=String(value||'').trim().toLowerCase();
  if(host.length>253||!host.includes('.')||!host.split('.').every(x=>/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(x)))throw Error('Enter a DNS hostname without a scheme, port or path');

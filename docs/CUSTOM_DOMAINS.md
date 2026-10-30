@@ -15,3 +15,5 @@ Native subscription labels now include a flag and full English region name for c
 نام کشورها همراه پرچم در اشتراک بومی نمایش داده می‌شود و هوشمند اول می‌ماند. فقط مسیرهای پیکربندی‌شده اضافه می‌شوند؛ ساخت خروجی واقعی کشور، تأیید اتصال زنده و افزودن پروتکل تازه در این تغییر انجام نشده است.
 
 Validation: TypeScript, 138 unit tests and local split integration passed. No cloud deployment or production data mutation was performed.
+
+Pages DNS conflicts: the installer preserves existing records and selects the first available numbered hostname (for example project-2.example.com). The selected hostname is checkpointed for resume before building the address-bound artifact. Permission/provider errors remain visible; no live DNS test was performed for this change.
