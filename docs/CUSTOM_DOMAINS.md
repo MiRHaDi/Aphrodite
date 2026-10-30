@@ -1,6 +1,6 @@
 # Custom domains and country labels
 
-On a fresh interactive Cloudflare installation, after token entry the installer lists accessible DNS zones and asks for an optional hostname. Enter keeps the provider hostname. Domain discovery requires Zone Read permission; existing DNS/domain setup requires the existing provider permissions. Unattended installs can supply `--domain panel.example.com --zone ZONE_ID`.
+On a fresh interactive Cloudflare installation, after token entry the installer lists accessible DNS zones by number. Select a number, then accept the project name as the default subdomain or enter a different subdomain. Enter or 0 at the domain list keeps the provider hostname. Domain discovery requires Zone Read permission; existing DNS/domain setup requires the existing provider permissions. Unattended installs can supply `--domain panel.example.com --zone ZONE_ID`.
 
 In split installations the management service uses that hostname. Same-account connection services receive `connect-primary-1.panel.example.com`, `connect-primary-2.panel.example.com`, etc. Additional accounts retain provider hostnames: a zone is never silently reused across accounts. Existing domain and certificate verification uses the provider adapter. Conflicting Pages DNS records are not overwritten. Resume keeps saved domain choices.
 
@@ -10,7 +10,7 @@ Native subscription labels now include a flag and full English region name for c
 
 ## فارسی
 
-نصب تازهٔ تعاملی کلودفلر، دامنه‌های در دسترس را نمایش می‌دهد و زیردامنهٔ اختیاری می‌پرسد. مدیریت و گره‌های اتصال همان حساب آدرس مستقل می‌گیرند؛ دامنه‌های قبلی هنگام ادامهٔ نصب حفظ می‌شوند. این قابلیت دامنهٔ اختصاصی است و تضمین پنهان‌ماندن زیرساخت نمی‌دهد.
+نصب تعاملی کلودفلر، دامنه‌های در دسترس را شماره‌گذاری می‌کند؛ شمارهٔ دامنه را انتخاب کنید. زیردامنه به‌صورت پیش‌فرض نام پروژه است؛ با Enter پذیرفته می‌شود و می‌توانید نام دیگری وارد کنید. Enter یا صفر در فهرست دامنه، آدرس ارائه‌دهنده را حفظ می‌کند. مدیریت و گره‌های اتصال همان حساب آدرس مستقل می‌گیرند؛ دامنه‌های قبلی هنگام ادامهٔ نصب حفظ می‌شوند. این قابلیت دامنهٔ اختصاصی است و تضمین پنهان‌ماندن زیرساخت نمی‌دهد.
 
 نام کشورها همراه پرچم در اشتراک بومی نمایش داده می‌شود و هوشمند اول می‌ماند. فقط مسیرهای پیکربندی‌شده اضافه می‌شوند؛ ساخت خروجی واقعی کشور، تأیید اتصال زنده و افزودن پروتکل تازه در این تغییر انجام نشده است.
 
