@@ -8,6 +8,33 @@ export async function availablePagesDomain(domain,target,readRecords){
  }
  throw Error('No free custom hostname found after 50 DNS checks; existing records were preserved');
 }
+export function pagesDnsMatches(records,target){
+ return records.every(record=>record.type==='CNAME'&&String(record.content).toLowerCase().replace(/\.$/,'')===target.toLowerCase().replace(/\.$/,''));
+}
+export async function selectPagesDomain(domain,target,readRecords,ask){
+ const records=await readRecords(domain);
+ if(!records.length)return {domain};
+ if(!ask){
+  if(pagesDnsMatches(records,target))return {domain};
+  throw Error('Custom hostname is already configured; run interactively to reuse it or choose another hostname');
+ }
+ const replaceable=records.length===1&&['A','AAAA','CNAME'].includes(records[0].type);
+ let choice;
+ do{choice=(await ask('Existing hostname '+domain+': '+records.map(record=>record.type+' '+record.content).join(', ')+'\n1) Reuse this hostname'+(pagesDnsMatches(records,target)?' (keep existing DNS)':' (replace its DNS target; old service traffic will move here)')+'\n2) Choose an available numbered hostname\nChoose 1 or 2'+(pagesDnsMatches(records,target)?' [1]':''))).trim()||(pagesDnsMatches(records,target)?'1':'');}while(!['1','2'].includes(choice));
+ if(choice==='2')return {domain:await availablePagesDomain(domain,target,async candidate=>candidate===domain?[{type:'RESERVED'}]:readRecords(candidate))};
+ if(pagesDnsMatches(records,target))return {domain};
+ if(!replaceable)throw Error('This hostname contains multiple or non-address DNS records; choose another hostname to preserve those records');
+ return {domain,replacement:{...records[0]}};
+}
+export async function bindPagesDns(domain,target,{readRecords,createRecord,replaceRecord},replacement){
+ const records=await readRecords(domain);
+ if(pagesDnsMatches(records,target)){
+  if(!records.length)await createRecord({type:'CNAME',name:domain,content:target,proxied:true});
+  return;
+ }
+ if(!replacement||records.length!==1||['id','type','content','name'].some(key=>records[0][key]!==replacement[key]))throw Error('DNS changed after selection; resume to confirm the current record. No DNS record was overwritten');
+ await replaceRecord(replacement.id,{type:'CNAME',name:domain,content:target,proxied:true,ttl:1});
+}
 export function normalizeDomain(value){
  const host=String(value||'').trim().toLowerCase();
  if(host.length>253||!host.includes('.')||!host.split('.').every(x=>/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(x)))throw Error('Enter a DNS hostname without a scheme, port or path');

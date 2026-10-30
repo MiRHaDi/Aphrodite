@@ -25,6 +25,7 @@ export async function prepareInstall(values,ui,{sessionFactory=openSession,inter
  const installationName=name(await choose('Installation name',values.name,saved.name||'aphrodite-'+Date.now().toString(36)));
  if(session&&Object.keys(session.state.services).length&&(provider!==saved.provider||installationName!==saved.name))throw Error('Changing an existing management destination requires --new; its current users and database are preserved');
  const options={...values,provider,name:installationName,account:values.account||saved.account,zone:values.zone||saved.zone,domain:values.domain||saved.domain,connections:(adding?saved.connections:values.connections)||saved.connections||'2',connectionProviders:(adding?saved.connectionProviders:values['connection-providers'])||saved.connectionProviders||'workers,pages',databaseId:values['database-id']||saved.databaseId,session};
+ if(interactive)options.askDomain=label=>ui.ask(label);
  const topology=values.topology||saved.topology||(['workers','pages'].includes(provider)?'split':'standalone');
  options.topology=topology;
  if(session&&Object.keys(session.state.services).length){if(saved.topology&&topology!==saved.topology)throw Error('Changing an existing topology requires --new; saved user data is preserved');if(saved.account&&values.account&&values.account!==saved.account)throw Error('Use Add account to extend this installation; its management account is preserved');}
