@@ -38,6 +38,7 @@ export interface Env {
   PUBLIC_EDGE_HOST?: string;
   PUBLIC_EDGE_HOSTS?: string;
   UPDATE_WEBHOOK_URL?: string;
+  APHRODITE_BUILD_IDENTITY?: string;
   SUBSCRIPTION_GATEWAYS_JSON?: string;
   EDGE_HOST_ALIASES?: string;
   EDGE_ENDPOINTS_JSON?: string;
