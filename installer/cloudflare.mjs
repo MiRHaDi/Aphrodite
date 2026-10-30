@@ -8,6 +8,16 @@ import {lockArtifact} from './address-lock.mjs';
 import {selectPagesDomain,bindPagesDns,domainParts} from './domains.mjs';
 import {configurationHash,migrationHash,restoreEnvironment} from './reconcile.mjs';
 const base='https://api.cloudflare.com/client/v4/';
+async function verifyDeployment(url,providerUrl,env,readiness){
+  try{await verify(url,env,url===providerUrl?readiness:{attempts:3,delay:1000,requiredConsecutive:1});return {url,customDomainPending:false};}
+  catch(error){
+    if(url===providerUrl)throw error;
+    report('Custom hostname is not ready; verifying the provider hostname while DNS/TLS propagates','waiting');
+    await verify(providerUrl,env,readiness);
+    report('Provider hostname is healthy; custom hostname remains saved for a later resume','done');
+    return {url:providerUrl,customDomainPending:true,requestedUrl:url};
+  }
+}
 export async function deployCloudflare(options,env,artifact){
   report('Configure '+options.provider+' service: '+options.name+' | role: '+(env.DEPLOYMENT_ROLE||'standalone'));
   const token=required(options.token,'Cloudflare token');
@@ -71,7 +81,7 @@ export async function deployCloudflare(options,env,artifact){
     const bound=options.provider==='workers'?existingConfig.bindings?.find(b=>b.name==='DB')?.id:existingConfig.deployment_configs?.production?.d1_databases?.DB?.id;
     if(record.database&&bound!==record.database)throw Error('Current database binding differs from saved installation; no resource was modified');
     report('Completed service found; verify it without uploading again');
-    const url=options.domain?'https://'+options.domain:serviceUrl;await verify(url,env,record.verified?{attempts:1,delay:0,requiredConsecutive:1,...options.readiness}:options.readiness);record.verified=true;await checkpoint();return {url,providerUrl:serviceUrl,database:record.database,unchanged:true};
+    const url=options.domain?'https://'+options.domain:serviceUrl;const checked=await verifyDeployment(url,serviceUrl,env,record.verified?{attempts:1,delay:0,requiredConsecutive:1,...options.readiness}:options.readiness);record.url=checked.url;record.verified=true;record.customDomainPending=checked.customDomainPending;await checkpoint();return {url:checked.url,providerUrl:serviceUrl,database:record.database,unchanged:true,customDomainPending:checked.customDomainPending,requestedUrl:checked.requestedUrl};
   }
   const connection=databaseFree;
   if(connection&&options.databaseId)throw Error('Connection deployments must not have a database');
@@ -125,7 +135,7 @@ export async function deployCloudflare(options,env,artifact){
     const response=await activity('Upload Worker and bindings',()=>fetch(base+prefix+'workers/scripts/'+options.name,{method:'PUT',headers:{Authorization:'Bearer '+token},body:form,signal:AbortSignal.timeout(120000)}));report('Worker upload | HTTP '+response.status);const data=await response.json();if(data?.errors?.some(e=>Number(e.code)===8000119))throw Error('Cloudflare blocked this deployment (8000119); request provider review. Existing data is preserved.');if(!response.ok||!data.success)throw Error('Worker upload failed; database id: '+(database?.uuid||'none'));
     await jsonRequest(base+prefix+'workers/scripts/'+options.name+'/subdomain',{token,method:'POST',body:{enabled:true,previews_enabled:false}});
     if(options.domain)await jsonRequest(base+prefix+'workers/domains',{token,method:'PUT',body:{environment:'production',hostname:options.domain,service:options.name,zone_id:options.zone}});
-    const url=options.domain?'https://'+options.domain:serviceUrl;record.url=url;record.uploaded=true;record.buildHash=artifact.manifest?.sha256;record.configurationHash=desiredConfigurationHash;record.migrationHash=desiredMigrationHash;if(session)await session.secret(secretName,JSON.stringify(env));await checkpoint();await verify(url,env,options.readiness);record.verified=true;await checkpoint();return {url,providerUrl:serviceUrl,database:database?.uuid};
+    const requestedUrl=options.domain?'https://'+options.domain:serviceUrl;record.url=requestedUrl;record.uploaded=true;record.buildHash=artifact.manifest?.sha256;record.configurationHash=desiredConfigurationHash;record.migrationHash=desiredMigrationHash;if(session)await session.secret(secretName,JSON.stringify(env));await checkpoint();const checked=await verifyDeployment(requestedUrl,serviceUrl,env,options.readiness);record.url=checked.url;record.verified=true;record.customDomainPending=checked.customDomainPending;await checkpoint();return {url:checked.url,providerUrl:serviceUrl,database:database?.uuid,customDomainPending:checked.customDomainPending,requestedUrl:checked.requestedUrl};
   }
   report('Create Pages project and bindings');
   const config={production:{compatibility_date:'2026-10-03',compatibility_flags:['global_fetch_strictly_public'],...(database?{d1_databases:{DB:{id:database.uuid}}}:{}),env_vars:Object.fromEntries(Object.entries(env).map(([name,value])=>[name,{type:/TOKEN|PASSWORD|SECRET|ADMIN_PATH|EDGE_CONTROL_PATH|EDGE_PROBE_PATH|DATA_CONTROL_PATH|DATA_CONTROL_URL/.test(name)?'secret_text':'plain_text',value:String(value)}]))}};
@@ -150,5 +160,5 @@ export async function deployCloudflare(options,env,artifact){
       replaceRecord:(id,body)=>jsonRequest(base+'zones/'+options.zone+'/dns_records/'+encodeURIComponent(id),{token,method:'PATCH',body})
     },domainSelection?.replacement);
   }
-  const url=options.domain?'https://'+options.domain:serviceUrl;record.url=url;record.uploaded=true;record.buildHash=artifact.manifest?.sha256;record.configurationHash=desiredConfigurationHash;record.migrationHash=desiredMigrationHash;if(session)await session.secret(secretName,JSON.stringify(env));await checkpoint();await verify(url,env,options.readiness);record.verified=true;await checkpoint();return {url,providerUrl:serviceUrl,database:database?.uuid};
+  const requestedUrl=options.domain?'https://'+options.domain:serviceUrl;record.url=requestedUrl;record.uploaded=true;record.buildHash=artifact.manifest?.sha256;record.configurationHash=desiredConfigurationHash;record.migrationHash=desiredMigrationHash;if(session)await session.secret(secretName,JSON.stringify(env));await checkpoint();const checked=await verifyDeployment(requestedUrl,serviceUrl,env,options.readiness);record.url=checked.url;record.verified=true;record.customDomainPending=checked.customDomainPending;await checkpoint();return {url:checked.url,providerUrl:serviceUrl,database:database?.uuid,customDomainPending:checked.customDomainPending,requestedUrl:checked.requestedUrl};
 }
