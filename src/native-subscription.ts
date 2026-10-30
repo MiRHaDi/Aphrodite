@@ -45,7 +45,8 @@ export function nativeLinks(account:NativeAccount,host:string,now=Date.now(),cou
 }
 function base64(value:string):string{let binary='';for(const byte of new TextEncoder().encode(value))binary+=String.fromCharCode(byte);return btoa(binary)}
 export async function nativeSubscription(request:Request,env:Env,account:NativeAccount):Promise<Response>{
-  const key=new URL(request.url).searchParams.get('token')||'';
+  const urlForKey=new URL(request.url),opaqueKey=urlForKey.pathname.match(/^\/([a-f0-9]{64})(?:\/[^/]+)?$/i)?.[1]||'';
+  const key=urlForKey.searchParams.get('token')||opaqueKey;
   if(!account.subscription_key||key.length!==account.subscription_key.length)return text('Not found',404);
   let difference=0;for(let i=0;i<key.length;i++)difference|=key.charCodeAt(i)^account.subscription_key.charCodeAt(i);
   if(difference)return text('Not found',404);

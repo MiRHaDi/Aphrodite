@@ -1,7 +1,7 @@
 import { DEFAULT_INBOUNDS, origins } from "./config";
 import { error, json } from "./responses";
 import type { CreateUserInput, Env } from "./types";
-import { createNative, listNative, nativeEnabled } from './native-accounts';
+import { createNative, ledger, listNative, nativeEnabled } from './native-accounts';
 import { settingsFor } from './native-types';
 import {nativeNodes} from './network-nodes';
 
@@ -65,7 +65,8 @@ export async function users(env: Env): Promise<Response> {
   const native=await listNative(env),response=await api(env, "/api/users?limit=1000&offset=0");
   if(!native.length&&response.ok)return response;if(!native.length&&!nativeEnabled(env))return response;
   const data=response.ok?await response.json() as {users?:unknown[]}:{};
-  return json({users:[...native.map(a=>({username:a.username,status:!a.enabled?'disabled':a.expires_at&&a.expires_at<Date.now()/1000?'expired':'active',used_traffic:null,data_limit:settingsFor(a).dataLimitBytes,expire:a.expires_at,engine:'native'})),...(data.users||[])]});
+  const nativeUsers=await Promise.all(native.map(async a=>{let used_traffic:number|null=null;try{const usage=await ledger(env,a);if(usage.ok)used_traffic=(await usage.json() as {usedBytes?:number}).usedBytes??null;}catch{}return {username:a.username,status:!a.enabled?'disabled':a.expires_at&&a.expires_at<Date.now()/1000?'expired':'active',used_traffic,data_limit:settingsFor(a).dataLimitBytes,expire:a.expires_at,engine:'native'};}));
+  return json({users:[...nativeUsers,...(data.users||[])]});
 }
 
 export async function nodes(env: Env,request?:Request): Promise<Response> {

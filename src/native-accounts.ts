@@ -53,7 +53,13 @@ export async function nativeAdmin(request: Request, env: Env, username?: string,
   if (!nativeEnabled(env)) return error('Native core is not enabled',503);
   if (!username) {
     if(request.method==='POST'){let input:Record<string,unknown>;try{input=await request.json();}catch{return error('Invalid JSON',400)}return createNative(input,env)}
-    return json({users:(await listNative(env)).map(account=>({...account,settings:settingsFor(account)}))});
+    const origin=new URL(request.url).origin;
+    const users=await Promise.all((await listNative(env)).map(async account=>{
+      const token=await ensureSubscriptionKey(env,account.username,account.subscription_key||undefined);
+      let status:{usedBytes?:number;requests?:number}={};try{const response=await ledger(env,account);if(response.ok)status=await response.json() as {usedBytes?:number;requests?:number};}catch{}
+      return {...account,settings:settingsFor(account),subscriptionPath:subscriptionPathFor(env,account.username,token,account.uuid),subscriptionUrl:subscriptionUrlFor(env,origin,account.username,token,account.uuid),usage:status};
+    }));
+    return json({users});
   }
   let account=await findNative(env,username);if(!account)return error('Account not found',404);
   if(request.method==='GET'){
