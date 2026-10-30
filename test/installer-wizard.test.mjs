@@ -40,3 +40,10 @@ it('resumes unattended from saved defaults without opening an input prompt',asyn
  const {session,ui}=await fixture();const result=await prepareInstall({resume:true},ui,{sessionFactory:async()=>session,interactive:false});
  expect(result.provider).toBe('pages');expect(result.options.token).toBe('fake-saved-provider-token');expect(ui.ask).not.toHaveBeenCalled();expect(ui.provider).not.toHaveBeenCalled();
 });
+it('can choose a missing custom domain when resuming a named installation',async()=>{
+ const {session,ui}=await fixture();
+ ui.ask.mockImplementation(async label=>label.startsWith('Configure a custom hostname')?'y':'');
+ const domainChooser=vi.fn(async options=>Object.assign(options,{domain:'panel.example.com',zone:'zone-fixture'}));
+ const result=await prepareInstall({resume:true},ui,{sessionFactory:async()=>session,interactive:true,domainChooser});
+ expect(domainChooser).toHaveBeenCalledOnce();expect(result.options.domain).toBe('panel.example.com');expect(session.state.options.domain).toBe('panel.example.com');expect(result.env.ADMIN_TOKEN).toBe('saved-admin-token-at-least-32-characters');
+});

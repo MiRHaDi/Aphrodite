@@ -16,3 +16,8 @@ it('does not select domains when declined or outside owned zones',async()=>{
  const options={token:'fixture'};await chooseCloudflareDomain(options,{ask:async()=>''},{request});expect(options.domain).toBeUndefined();
  await expect(chooseCloudflareDomain(options,{ask:async()=> 'other.test'},{request})).rejects.toThrow('accessible DNS zone');
 });
+it('resolves the zone for an explicit hostname without another prompt',async()=>{
+ const options={token:'fixture',domain:'panel.example.com'};
+ await chooseCloudflareDomain(options,{ask:async()=>{throw Error('Unexpected prompt')}},{request:async()=>({result:[{name:'example.com',id:'zone',account:{id:'account'}}]})});
+ expect(options.zone).toBe('zone');expect(options.account).toBe('account');
+});

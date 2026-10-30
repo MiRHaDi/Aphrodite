@@ -17,7 +17,7 @@ export async function chooseCloudflareDomain(options,ui,{request=jsonRequest}={}
   zones.push(...(data.result||[]));if(page>=(data.result_info?.total_pages||1))break;page++;
  }
  if(!zones.length){ui.detail({level:'info',message:'No accessible DNS zones; keep provider hostname or supply --domain and --zone.'});return;}
- const answer=await ui.ask('Optional custom hostname (Enter keeps provider hostname). Available zones: '+zones.map(z=>z.name).join(', '));
+ const answer=options.domain||await ui.ask('Optional custom hostname (Enter keeps provider hostname). Available zones: '+zones.map(z=>z.name).join(', '));
  if(!answer.trim())return;
  const domain=normalizeDomain(answer),matches=zones.filter(z=>domain===z.name||domain.endsWith('.'+z.name)).sort((a,b)=>b.name.length-a.name.length);
  const zone=matches[0];if(!zone)throw Error('Hostname does not belong to an accessible DNS zone');

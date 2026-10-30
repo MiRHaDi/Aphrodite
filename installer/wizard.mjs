@@ -6,7 +6,7 @@ import {chooseCloudflareDomain,normalizeDomain} from './domains.mjs';
 const providers=['workers','pages','railway','render','docker','vps','bundle'];
 const tokenNames={workers:'CLOUDFLARE_API_TOKEN',pages:'CLOUDFLARE_API_TOKEN',railway:'RAILWAY_API_TOKEN',render:'RENDER_API_KEY'};
 const savedKeys=['provider','name','account','zone','domain','connections','connectionProviders','databaseId','topology'];
-export async function prepareInstall(values,ui,{sessionFactory=openSession,interactive=Boolean(process.stdin.isTTY)}={}){
+export async function prepareInstall(values,ui,{sessionFactory=openSession,interactive=Boolean(process.stdin.isTTY),domainChooser=chooseCloudflareDomain}={}){
  const preview=values.preview;
  let session,adding=values['add-account'];
  if(!preview&&!values['no-save']&&(!values.provider||['workers','pages'].includes(values.provider))){
@@ -52,7 +52,11 @@ export async function prepareInstall(values,ui,{sessionFactory=openSession,inter
   if(['workers','pages'].includes(provider)){options.account=await choose('Cloudflare account ID (blank to auto-detect)',values.account,saved.account||'');if(Object.keys(session?.state.services||{}).length&&saved.account&&options.account!==saved.account)throw Error('Use Add account to extend the existing installation; its management account is preserved');}
  }
  if(options.domain)options.domain=normalizeDomain(options.domain);
- if(interactive&&!preview&&!adding&&!saved.name&&!options.domain&&['workers','pages'].includes(provider))await chooseCloudflareDomain(options,ui);
+ if(!preview&&!adding&&['workers','pages'].includes(provider)){
+  const configure=options.domain&&!options.zone||interactive&&!options.domain&&(!saved.name||(await ui.ask('Configure a custom hostname for this installation? [y/N]')).toLowerCase()==='y');
+  if(configure)await domainChooser(options,ui);
+  report(options.domain?'Custom hostname: '+options.domain+' | DNS zone: '+options.zone:'Custom hostname not selected; using provider addresses');
+ }
  if(provider==='render'&&!preview){options.plan=options.plan||await ui.ask('Render plan with persistent disk (paid; for example starter)');if(options.plan==='free')throw Error('Render persistent disk requires a paid plan');}
  if(provider==='vps'&&!preview){options.host=options.host||await ui.ask('SSH host');options.sshPort=values['ssh-port'];options.password=process.env.SSH_PASSWORD;if(!options.key&&!options.password)options.password=await ui.ask('SSH password',true);options.fingerprint=options.fingerprint||await ui.ask('Verified SSH fingerprint (SHA256:...)');}
  let variables=process.env.APHRODITE_VARIABLES;

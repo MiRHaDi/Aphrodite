@@ -26,7 +26,12 @@ export function interfaceFor({input=process.stdin,output=process.stdout}={}){
  return {banner,step,ask,provider,detail(event){if(event.level==='tick'){if(output.isTTY){const frames=['/','|',String.fromCharCode(92),'-'];const width=Math.max(12,(output.columns||80)-6),tail=event.message.match(/ \| \d+s elapsed$/)?.[0]||'';const message=event.message.length>width?event.message.slice(0,Math.max(0,width-tail.length-3))+'...'+tail:event.message;output.write('\r\x1b[2K  '+frames[frame++%4]+' '+message);loading=true;}return;}write(paint('  ['+String(event.sequence).padStart(3,'0')+'] ['+event.time.toLocaleTimeString('en-GB')+'] ','2')+paint('['+event.level.toUpperCase()+'] '+event.message,({step:'1;35',start:'36',waiting:'33',done:'32',error:'31'}[event.level]||'37')));},close(){clear();reader?.close();reader=undefined;},success(message){report(message,'done');}};
 }
 
-export function terminalLink(url,label=url){return process.stdout.isTTY&&!process.env.NO_COLOR?'\x1b]8;;'+url+'\x1b\\'+(label===url?'\x1b[1;36m':'\x1b[1;33m')+label+'\x1b[0m'+'\x1b]8;;\x1b\\':label===url?url:label+' ('+url+')';}
+export function terminalLink(url,label=url){
+ if(!process.stdout.isTTY)return label===url?url:label+' ('+url+')';
+ const display=process.env.NO_COLOR?label:'\x1b['+(label===url?'1;36':'1;33')+'m'+label+'\x1b[0m';
+ return '\x1b]8;;'+url+'\x1b\\'+display+'\x1b]8;;\x1b\\';
+}
+
 export const cloudflareTokenUrl='https://dash.cloudflare.com/profile/api-tokens?permissionGroupKeys='+encodeURIComponent(JSON.stringify([
  ['workers_scripts','edit'],['workers_kv_storage','edit'],['workers_routes','edit'],['workers_r2','edit'],['page','edit'],['dns','edit'],['zone','read'],['zone_settings','edit'],['dns_records','edit'],['ssl_and_certificate','edit'],['cache_purge','edit'],['user_details','read'],['account','read'],['workers_tail','read'],['d1','edit']
 ].map(([key,type])=>({key,type}))))+'&accountId=*&zoneId=all&name=Aphrodite';
