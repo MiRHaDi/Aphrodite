@@ -8,6 +8,25 @@ import {deployCloudflare} from '../installer/cloudflare.mjs';
 import {configuration} from '../installer/common.mjs';
 vi.mock('../installer/common.mjs',async original=>({...await original(),run:vi.fn(async()=> '')}));
 const folders=[];afterEach(async()=>{vi.unstubAllGlobals();for(const path of folders.splice(0))await rm(path,{recursive:true,force:true});});
+it.each(['workers','pages'])('installs a remote-data %s manager without provisioning or binding a second database',async provider=>{
+ let bindings,project;
+ vi.stubGlobal('fetch',vi.fn(async(input,init={})=>{
+  const url=String(input),path=new URL(url).pathname;
+  if(url.includes('.workers.dev')||url.includes('.pages.dev'))return path==='/'?new Response(null,{status:404}):Response.json({ok:true});
+  if(path.includes('/d1/'))throw Error('Must not touch local D1');
+  if(path.endsWith('/workers/subdomain'))return Response.json({success:true,result:{subdomain:'test'}});
+  if(path.includes('/workers/scripts/')&&init.method==='PUT'){bindings=JSON.parse(init.body.get('metadata')).bindings;return Response.json({success:true})}
+  if(path.endsWith('/subdomain')&&init.method==='POST')return Response.json({success:true});
+  if(path.endsWith('/pages/projects')&&init.method==='POST'){project=JSON.parse(init.body);return Response.json({success:true})}
+  if(path.includes('/workers/scripts/')||path.includes('/pages/projects/'))return new Response(null,{status:404});
+  throw Error('Unexpected request');
+ }));
+ const env={...configuration({adminPath:'private-manager-fixture',adminToken:'fixture-administrator-token-32-characters'}),DEPLOYMENT_ROLE:'management',DATA_CONTROL_URL:'https://data.example/private-data-path',DATA_CONTROL_TOKEN:'fixture-remote-data-token-32-characters'};
+ const result=await deployCloudflare({provider,account:'a'.repeat(32),name:'remote-manager',token:'fixture-provider',readiness:{attempts:1,delay:0,requiredConsecutive:1}},env,{directory:new URL('../',import.meta.url).pathname.replace(/^\/([A-Z]:)/,'$1'),code:'export default {}'});
+ expect(result.database).toBeUndefined();
+ expect(fetch.mock.calls.some(([url])=>String(url).includes('/d1/'))).toBe(false);
+ if(provider==='workers')expect(bindings.some(b=>b.name==='DB')).toBe(false);else expect(project.deployment_configs.production.d1_databases).toBeUndefined();
+});
 it.each(['workers','pages'])('resumes the same %s and database after readiness failure without changing users or secrets',async provider=>{
  const folder=await mkdtemp(join(tmpdir(),'aphrodite-resume-test-'));folders.push(folder);
  const values=new Map(),credentials={get:async k=>values.get(k)??null,set:async(k,v)=>{values.set(k,v);}};

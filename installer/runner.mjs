@@ -10,6 +10,7 @@ import {deploySSH} from './ssh.mjs';
 import {deploySplit} from './topology.mjs';
 import {validateOptions} from './options.mjs';
 import {deployWildcardGateway,wildcardReservedHosts} from './wildcard.mjs';
+import {validateCluster,restoreCluster} from './cluster.mjs';
 let running=false;
 export function redact(message,values){
  let result=String(message);
@@ -35,7 +36,9 @@ export async function runInstallation(input,{ui,interactive=false,environment=pr
   }
   prepared=await prepare(values,interfaceUi,{interactive,environment});
   const {options,env,session,provider,topology}=prepared;
-  secrets.push(options.token,options.password,...(options.targets||[]).map(item=>item.token),...Object.entries(env).filter(([key])=>/TOKEN|SECRET|PASSWORD|ADMIN_PATH|EDGE_CONTROL_PATH|EDGE_PROBE_PATH/.test(key)).map(([,value])=>value));
+  await restoreCluster(env,options,session,topology);
+  validateCluster(env,topology);
+  secrets.push(options.token,options.password,...(options.targets||[]).map(item=>item.token),...Object.entries(env).filter(([key])=>/TOKEN|SECRET|PASSWORD|ADMIN_PATH|EDGE_CONTROL_PATH|EDGE_PROBE_PATH|DATA_CONTROL_PATH|DATA_CONTROL_URL/.test(key)).map(([,value])=>value));
   onPrepared?.(prepared);
   if(options.wildcardDomain&&!values.preview&&provider!=='bundle')env.SUBSCRIPTION_RESERVED_HOSTS_JSON=JSON.stringify(await wildcardReservedHosts(options));
   let result;
@@ -47,7 +50,10 @@ export async function runInstallation(input,{ui,interactive=false,environment=pr
   }else{
    interfaceUi.step('Build and validate deployment bundle');
    const platform=profile==='working-baseline'||['workers','pages'].includes(provider)?'workers':'node';
-   const artifact=await activity('Build deployment bundle',()=>build(platform,{profile}));
+   const role=env.DEPLOYMENT_ROLE||'standalone';
+   if(!['standalone','management','database'].includes(role))throw Error('Use split topology for connection nodes');
+   if(env.DATA_CONTROL_URL&&role!=='management')throw Error('Remote database clients require management role');
+   const artifact=await activity('Build deployment bundle',()=>build(platform,{profile,role}));
    if(values.preview||provider==='bundle')result={provider,name:options.name,artifact:artifact.directory,...artifact.manifest,mutations:false};
    else{
     interfaceUi.step('Provision resources and verify readiness');
@@ -56,7 +62,8 @@ export async function runInstallation(input,{ui,interactive=false,environment=pr
   }
   if(options.wildcardDomain&&!values.preview&&provider!=='bundle')result={...result,wildcard:await deployWildcardGateway(options,env,result)};
   if(session&&!values.preview&&provider!=='bundle'){session.state.status='verified';await session.save();}
-  if(values['include-credentials']&&!values.preview&&provider!=='bundle')result={...result,credentials:{administratorPath:env.ADMIN_PATH,administratorToken:env.ADMIN_TOKEN}};
+  result={...result,deploymentRole:topology==='split'?'management':env.DEPLOYMENT_ROLE||'standalone'};
+  if(values['include-credentials']&&!values.preview&&provider!=='bundle')result={...result,credentials:env.DEPLOYMENT_ROLE==='database'?{dataControlPath:env.DATA_CONTROL_PATH,dataControlToken:env.DATA_CONTROL_TOKEN}:{administratorPath:env.ADMIN_PATH,administratorToken:env.ADMIN_TOKEN}};
   return result;
  }catch(error){
   const session=prepared?.session;

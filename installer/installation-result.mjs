@@ -1,6 +1,12 @@
 import {terminalLink} from './ui.mjs';
 import {resultCard} from './result-card.mjs';
 export async function showInstallationResult(result,env,{ui,interactiveCard=false}={}){
+ if(env.DEPLOYMENT_ROLE==='database'){
+  ui?.success('Database authority verified');
+  console.log('\n  Data service:\n  '+terminalLink(result.url));
+  console.log('  Authenticated database query passed. This service has no management panel. Keep its data credentials private.');
+  return;
+ }
  const management=result.url.replace(/\/$/,'')+'/'+env.ADMIN_PATH;
  ui?.success('Installation verified');
  console.log('\n  Management:\n  '+terminalLink(management));

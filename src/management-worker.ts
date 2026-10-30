@@ -3,16 +3,12 @@ import {privateApplication,blank} from './private-entry';
 import {nativeIdentity,ledger} from './native-accounts';
 import type {Env} from './types';
 import {connectionRegistry} from './deployment-registry';
+import {clusterEnvironment} from './cluster-database';
+import {clusterAuthorized} from './cluster-auth';
 const registryCache=new WeakMap<object,{expires:number;value:string}>();
 const privatePanel=privateApplication(application);
-async function authorized(request:Request,env:Env){
- if(!env.EDGE_CONTROL_TOKEN||env.EDGE_CONTROL_TOKEN.length<32)return false;
- const supplied=request.headers.get('authorization')||'';
- const hash=async(value:string)=>new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value)));
- const [a,b]=await Promise.all([hash(supplied),hash('Bearer '+env.EDGE_CONTROL_TOKEN)]);let diff=0;for(let i=0;i<a.length;i++)diff|=a[i]!^b[i]!;return diff===0;
-}
 export async function machineControl(request:Request,env:Env):Promise<Response>{
- if(request.method!=='POST'||!await authorized(request,env))return blank();
+ if(request.method!=='POST'||!await clusterAuthorized(request,env.EDGE_CONTROL_TOKEN,env.EDGE_CONTROL_TOKENS_JSON))return blank();
  const reader=request.body?.getReader();if(!reader)return blank();let body='',bytes=0;const decoder=new TextDecoder();
  try{while(true){const part=await reader.read();if(part.done)break;bytes+=part.value.length;if(bytes>8192){await reader.cancel();return blank()}body+=decoder.decode(part.value,{stream:true})}body+=decoder.decode()}catch{return blank()}finally{reader.releaseLock()}
  let input:Record<string,unknown>;try{input=JSON.parse(body)}catch{return blank()}
@@ -31,6 +27,7 @@ export async function machineControl(request:Request,env:Env):Promise<Response>{
 }
 export default {async fetch(request:Request,env:Env,ctx:ExecutionContext){
  if(request.headers.get('upgrade'))return blank();
+ try{env=clusterEnvironment(env)}catch{return new Response(null,{status:503})}
  const url=new URL(request.url);
  if(env.EDGE_CONTROL_PATH&&url.pathname==='/'+env.EDGE_CONTROL_PATH)return machineControl(request,env);
  let effective={...env,DEPLOYMENT_ROLE:'management' as const};

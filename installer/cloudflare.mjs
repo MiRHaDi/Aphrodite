@@ -61,17 +61,19 @@ export async function deployCloudflare(options,env,artifact){
   report('Bind executable artifact to this service address and its configured custom domain');
   artifact=await lockArtifact(artifact,[serviceUrl,...(options.domain?['https://'+options.domain]:[])],{wildcardDomain:options.gatewayWildcardDomain});
   env.PUBLIC_EDGE_HOST=options.domain||new URL(serviceUrl).hostname;env.EDGE_HOST_ALIASES=env.PUBLIC_EDGE_HOST;
-  const desiredConfigurationHash=configurationHash(env),desiredMigrationHash=env.DEPLOYMENT_ROLE==='connection'?'database-free':await migrationHash(artifact.directory);
+  const databaseFree=env.DEPLOYMENT_ROLE==='connection'||Boolean(env.DATA_CONTROL_URL);
+  if(env.DATA_CONTROL_URL&&(env.DEPLOYMENT_ROLE!=='management'||!env.DATA_CONTROL_TOKEN||env.DATA_CONTROL_TOKEN.length<32))throw Error('Remote database requires management role and a dedicated data token');
+  const desiredConfigurationHash=configurationHash(env),desiredMigrationHash=databaseFree?'database-free':await migrationHash(artifact.directory);
   if(options.domain)required(options.zone,'--zone for custom domain installation');
   const currentDatabase=options.provider==='workers'?existingConfig?.bindings?.find(b=>b.name==='DB')?.id:existingConfig?.deployment_configs?.production?.d1_databases?.DB?.id;
-  if(env.DEPLOYMENT_ROLE==='connection'&&currentDatabase)throw Error('Connection service has an unexpected DB binding; no binding or data was changed');
+  if(databaseFree&&(currentDatabase||record.database))throw Error('Database-free service has an existing DB binding; no binding or data was changed. Use a new service for a remote database client');
   if(existingConfig&&record.uploaded&&!domainSelection?.replacement&&record.configurationHash===desiredConfigurationHash&&record.migrationHash===desiredMigrationHash&&artifact.manifest?.sha256&&record.buildHash===artifact.manifest.sha256&&record.url===(options.domain?'https://'+options.domain:serviceUrl)&&!options.repair){
     const bound=options.provider==='workers'?existingConfig.bindings?.find(b=>b.name==='DB')?.id:existingConfig.deployment_configs?.production?.d1_databases?.DB?.id;
     if(record.database&&bound!==record.database)throw Error('Current database binding differs from saved installation; no resource was modified');
     report('Completed service found; verify it without uploading again');
     const url=options.domain?'https://'+options.domain:serviceUrl;await verify(url,env,record.verified?{attempts:1,delay:0,requiredConsecutive:1,...options.readiness}:options.readiness);record.verified=true;await checkpoint();return {url,providerUrl:serviceUrl,database:record.database,unchanged:true};
   }
-  const connection=env.DEPLOYMENT_ROLE==='connection';
+  const connection=databaseFree;
   if(connection&&options.databaseId)throw Error('Connection deployments must not have a database');
   if(options.databaseId&&!/^[a-f0-9-]{36}$/i.test(options.databaseId))throw Error('Invalid database id');
   report(connection?'Connection: no database':options.databaseId?'Reuse database without migrations':'Create management database');
@@ -118,7 +120,7 @@ export async function deployCloudflare(options,env,artifact){
   }
   if(options.provider==='workers'){
     report('Prepare Worker code ('+Buffer.byteLength(artifact.code)+' bytes), environment bindings and secret bindings');
-    const bindings=[...(existingConfig?.bindings||[]).filter(binding=>binding.type!=='secret_text'&&binding.name!=='DB'&&!Object.hasOwn(env,binding.name)),...(database?[{type:'d1',name:'DB',id:database.uuid}]:[]),...Object.entries(env).map(([name,text])=>({type:/TOKEN|PASSWORD|SECRET|ADMIN_PATH|EDGE_CONTROL_PATH|EDGE_PROBE_PATH/.test(name)?'secret_text':'plain_text',name,text:String(text)}))];
+    const bindings=[...(existingConfig?.bindings||[]).filter(binding=>binding.type!=='secret_text'&&binding.name!=='DB'&&!Object.hasOwn(env,binding.name)),...(database?[{type:'d1',name:'DB',id:database.uuid}]:[]),...Object.entries(env).map(([name,text])=>({type:/TOKEN|PASSWORD|SECRET|ADMIN_PATH|EDGE_CONTROL_PATH|EDGE_PROBE_PATH|DATA_CONTROL_PATH|DATA_CONTROL_URL/.test(name)?'secret_text':'plain_text',name,text:String(text)}))];
     const form=new FormData();form.set('metadata',JSON.stringify({main_module:'worker.mjs',compatibility_date:'2026-10-03',compatibility_flags:['global_fetch_strictly_public'],keep_bindings:['secret_text'],bindings}));form.set('worker.mjs',new Blob([artifact.code],{type:'application/javascript+module'}),'worker.mjs');
     const response=await activity('Upload Worker and bindings',()=>fetch(base+prefix+'workers/scripts/'+options.name,{method:'PUT',headers:{Authorization:'Bearer '+token},body:form,signal:AbortSignal.timeout(120000)}));report('Worker upload | HTTP '+response.status);const data=await response.json();if(data?.errors?.some(e=>Number(e.code)===8000119))throw Error('Cloudflare blocked this deployment (8000119); request provider review. Existing data is preserved.');if(!response.ok||!data.success)throw Error('Worker upload failed; database id: '+(database?.uuid||'none'));
     await jsonRequest(base+prefix+'workers/scripts/'+options.name+'/subdomain',{token,method:'POST',body:{enabled:true,previews_enabled:false}});
@@ -126,7 +128,7 @@ export async function deployCloudflare(options,env,artifact){
     const url=options.domain?'https://'+options.domain:serviceUrl;record.url=url;record.uploaded=true;record.buildHash=artifact.manifest?.sha256;record.configurationHash=desiredConfigurationHash;record.migrationHash=desiredMigrationHash;if(session)await session.secret(secretName,JSON.stringify(env));await checkpoint();await verify(url,env,options.readiness);record.verified=true;await checkpoint();return {url,providerUrl:serviceUrl,database:database?.uuid};
   }
   report('Create Pages project and bindings');
-  const config={production:{compatibility_date:'2026-10-03',compatibility_flags:['global_fetch_strictly_public'],...(database?{d1_databases:{DB:{id:database.uuid}}}:{}),env_vars:Object.fromEntries(Object.entries(env).map(([name,value])=>[name,{type:/TOKEN|PASSWORD|SECRET|ADMIN_PATH|EDGE_CONTROL_PATH|EDGE_PROBE_PATH/.test(name)?'secret_text':'plain_text',value:String(value)}]))}};
+  const config={production:{compatibility_date:'2026-10-03',compatibility_flags:['global_fetch_strictly_public'],...(database?{d1_databases:{DB:{id:database.uuid}}}:{}),env_vars:Object.fromEntries(Object.entries(env).map(([name,value])=>[name,{type:/TOKEN|PASSWORD|SECRET|ADMIN_PATH|EDGE_CONTROL_PATH|EDGE_PROBE_PATH|DATA_CONTROL_PATH|DATA_CONTROL_URL/.test(name)?'secret_text':'plain_text',value:String(value)}]))}};
   if(existingConfig){
     for(const mode of ['production','preview'])if(config[mode])config[mode].env_vars={...existingConfig.deployment_configs?.[mode]?.env_vars,...config[mode].env_vars};
     await jsonRequest(base+prefix+'pages/projects/'+options.name,{token,method:'PATCH',body:{deployment_configs:config}});

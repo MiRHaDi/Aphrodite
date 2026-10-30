@@ -21,8 +21,8 @@ export async function buildArtifact(platform,{out,transform=true,role='standalon
     const {buildWorkingBaseline}=await import('./working-baseline.mjs');
     const artifact=await buildWorkingBaseline({out});report('Artifact ready | verified reference | offline UI-only candidate','done');return artifact;
   }
-  if(!['standalone','management','connection','gateway'].includes(role))throw Error('Invalid deployment role');
-  if(platform==='node'&&role!=='standalone')throw Error('Split deployment roles currently require Workers or Pages');
+  if(!['standalone','management','connection','gateway','database'].includes(role))throw Error('Invalid deployment role');
+  if(platform==='node'&&!['standalone','management','database'].includes(role))throw Error('This deployment role requires Workers or Pages');
   const node=platform==='node';
   const fingerprint=await sourceFingerprint(root,{platform,role,transform,node:process.versions.node});
   const cacheDirectory=join(root,'.artifacts','build-cache',fingerprint),filename=node?'server.mjs':'worker.mjs';

@@ -30,7 +30,8 @@ export async function verify(url,env,{attempts=24,delay=5000,requiredConsecutive
     let healthy=false;
     try {
       const connection=env.DEPLOYMENT_ROLE==='connection';
-      const response=await deploymentFetch(url+(connection?'/'+env.EDGE_PROBE_PATH:'/'+env.ADMIN_PATH+'/api/overview'),{method:connection?'POST':'GET',headers:{Authorization:'Bearer '+(connection?env.EDGE_CONTROL_TOKEN:env.ADMIN_TOKEN),'Cache-Control':'no-cache'},signal:AbortSignal.timeout(20000)});
+      const data=env.DEPLOYMENT_ROLE==='database';
+      const response=await deploymentFetch(url+(data?'/'+env.DATA_CONTROL_PATH:connection?'/'+env.EDGE_PROBE_PATH:'/'+env.ADMIN_PATH+'/api/overview'),{method:data||connection?'POST':'GET',headers:{Authorization:'Bearer '+(data?env.DATA_CONTROL_TOKEN:connection?env.EDGE_CONTROL_TOKEN:env.ADMIN_TOKEN),'Cache-Control':'no-cache',...(data?{'content-type':'application/json'}:{})},body:data?JSON.stringify({statements:[{sql:'SELECT COUNT(*) AS count FROM native_accounts',params:[]}]}):undefined,signal:AbortSignal.timeout(20000)});
       status('health-http@'+url,(connection?'Connection probe':'Management API')+' | HTTP '+response.status,response.ok?'info':'waiting');
       if(!response.ok){
         const diagnostic=(await response.text()).slice(0,8192);
@@ -46,7 +47,7 @@ export async function verify(url,env,{attempts=24,delay=5000,requiredConsecutive
           if(diagnoses[healthCode]){const failure=Error(healthCode+': '+diagnoses[healthCode]+'. Existing resources are preserved.');failure.code='DEPLOYMENT_DIAGNOSTIC';throw failure;}
         }
       }
-      if(response.ok&&(await response.json()).ok){
+      if(response.ok&&await response.json().then(value=>data?value.results?.[0]?.success:value.ok)){
         const blank=await deploymentFetch(url+'/',{headers:{'Cache-Control':'no-cache'},signal:AbortSignal.timeout(20000)});
         const empty=(await blank.text())==='';
         status('health-root@'+url,'Public root | HTTP '+blank.status+' | empty body: '+empty);

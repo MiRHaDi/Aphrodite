@@ -19,6 +19,7 @@
     "build:edge": "node installer/build.mjs workers",
     "test:live": "node scripts/test-live.mjs",
     "test:split": "node test/integration/split_artifacts.mjs",
+    "test:cluster": "node test/integration/cluster_artifacts.mjs",
     "build:baseline-ui": "node installer/working-baseline.mjs",
     "test:baseline-ui": "node test/integration/working_baseline.mjs"
   },

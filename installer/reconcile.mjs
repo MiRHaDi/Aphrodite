@@ -9,7 +9,7 @@ export async function migrationHash(directory){
 }
 export function restoreEnvironment(env,saved,options){
  const desired={...env};Object.assign(env,saved);
- for(const key of ['DEPLOYMENT_ROLE','EDGE_CONTROL_URL','EDGE_CONTROL_TOKEN','PUBLIC_EDGE_HOST','EDGE_HOST_ALIASES','WILDCARD_BASE_DOMAIN','WILDCARD_UPSTREAM_URL'])if(desired[key]!==undefined)env[key]=desired[key];
+ for(const key of ['DEPLOYMENT_ROLE','EDGE_CONTROL_URL','EDGE_CONTROL_TOKEN','PUBLIC_EDGE_HOST','EDGE_HOST_ALIASES','WILDCARD_BASE_DOMAIN','WILDCARD_UPSTREAM_URL','DATA_CONTROL_URL','DATA_CONTROL_TOKEN','DATA_CONTROL_PATH','DATA_CONTROL_TOKENS_JSON','EDGE_CONTROL_TOKENS_JSON'])if(desired[key]!==undefined)env[key]=desired[key];
  Object.assign(env,options.variables||{});
  if(options.adminPasswordHash&&desired.DEPLOYMENT_ROLE!=='connection')env.ADMIN_PASSWORD_HASH=options.adminPasswordHash;
  if(desired.DEPLOYMENT_ROLE==='connection')for(const key of ['ADMIN_TOKEN','ADMIN_PATH','ADMIN_PASSWORD_HASH'])delete env[key];

@@ -1,5 +1,9 @@
 # Split deployment architecture
 
+For multiple management servers and a separate shared data authority, see
+[cluster configuration](CLUSTER.md). Local D1 remains the default; remote data is
+an explicit per-installation configuration, not an automatic migration.
+
 Cloudflare guided installs default to `--topology split`: one management service
 and two connection services (one Worker and one Pages project). Change the count
 with `--connections 1..8` and provider sequence with

@@ -1,5 +1,11 @@
 export interface Env {
-  DEPLOYMENT_ROLE?: 'management' | 'connection' | 'standalone';
+  DEPLOYMENT_ROLE?: 'management' | 'connection' | 'standalone' | 'database';
+  DATA_CONTROL_URL?: string;
+  DATA_CONTROL_PATH?: string;
+  DATA_CONTROL_TOKEN?: string;
+  DATA_CONTROL_TOKENS_JSON?: string;
+  DATA_CONTROL_SERVICE?: Fetcher;
+  EDGE_CONTROL_TOKENS_JSON?: string;
   EDGE_CONTROL_URL?: string;
   EDGE_CONTROL_SERVICE?: Fetcher;
   EDGE_CONTROL_TOKEN?: string;
