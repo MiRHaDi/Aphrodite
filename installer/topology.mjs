@@ -21,7 +21,7 @@ export function splitPlan(options){
 export async function registerConnections(central,env,endpoints){
  return activity('Register verified connections in shared subscriptions',async()=>{
   const current=await deploymentFetch(central.url+'/'+env.ADMIN_PATH+'/api/deployment/connections',{headers:{authorization:'Bearer '+env.ADMIN_TOKEN},signal:AbortSignal.timeout(20000)});
-  if(current.ok){const data=await current.json();if(Array.isArray(data.endpoints)&&endpoints.every(endpoint=>data.endpoints.some(saved=>saved.host===endpoint.host&&saved.sni===endpoint.sni&&saved.address===endpoint.address))){report('Connections already registered; no subscription settings changed');return {ok:true,unchanged:true};}}
+  if(current.ok){const data=await current.json();if(Array.isArray(data.endpoints)&&endpoints.every(endpoint=>data.endpoints.some(saved=>JSON.stringify(saved)===JSON.stringify(endpoint)))){report('Connections already registered; no subscription settings changed');return {ok:true,unchanged:true};}}
   const response=await deploymentFetch(central.url+'/'+env.ADMIN_PATH+'/api/deployment/connections',{method:'POST',headers:{authorization:'Bearer '+env.ADMIN_TOKEN,'content-type':'application/json'},body:JSON.stringify({endpoints}),signal:AbortSignal.timeout(20000)});
   if(!response.ok)throw Error('Connection is deployed but registration failed (HTTP '+response.status+'); resume to retry registration');
   const data=await response.json();if(!data.ok)throw Error('Connection registration was not confirmed');return data;

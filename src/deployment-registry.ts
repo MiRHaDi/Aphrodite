@@ -16,7 +16,10 @@ export async function deploymentConnections(request:Request,env:Env):Promise<Res
  const add=(input as {endpoints?:unknown[]})?.endpoints;
  if(!Array.isArray(add)||add.length>16||!add.every(valid))return error('Invalid connection endpoints',400);
  const current=request.method==='PUT'?[]:await connectionRegistry(env);
- const merged=[...current,...add].filter((item,index,list)=>list.findIndex(other=>other.host===item.host&&other.sni===item.sni&&other.address===item.address)===index);
+ const combined=[...current,...add];
+ // The final occurrence wins so a resumed installer can add country/name/protocol
+ // metadata to a previously registered hostname without replacing the endpoint.
+ const merged=combined.filter((item,index,list)=>!list.slice(index+1).some(other=>other.host===item.host&&other.sni===item.sni&&other.address===item.address));
  if(merged.length>64)return error('Connection limit reached',409);
  // Merge in SQLite so concurrent installers cannot overwrite each other's nodes.
  await env.DB.prepare(`INSERT INTO native_configuration(key,value) VALUES('connection_endpoints',?)
