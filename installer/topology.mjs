@@ -47,7 +47,8 @@ export async function deploySplit(options,env,{preview=false,deploy=deployCloudf
  }
  const centralEnv={...env,DEPLOYMENT_ROLE:'management',EDGE_CONTROL_TOKEN:secret,EDGE_CONTROL_PATH:controlPath,EDGE_ENDPOINTS_JSON:'[]',CONNECTION_ENDPOINTS_JSON:'[]'};
  report('Builds complete; deploy and verify management before connection services','step');
- const central=await deploy({...options,...plan.management,account,databaseId:options.databaseId},centralEnv,management);
+ const central=await deploy({...options,...plan.management,domainProjectName:options.name,account,databaseId:options.databaseId},centralEnv,management);
+ if(options.domain)options.domain=new URL(central.url).hostname;
  report('Management is ready; provision connection services','done');
  const edges=[];
  for(const [index,item] of plan.connections.entries()){

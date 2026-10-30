@@ -5,6 +5,7 @@ import {join} from 'node:path';
 import {openSession} from '../installer/session.mjs';
 import {prepareInstall} from '../installer/wizard.mjs';
 import {deploySplit,splitPlan} from '../installer/topology.mjs';
+import {chooseCloudflareDomain} from '../installer/domains.mjs';
 const folders=[];afterEach(async()=>{vi.unstubAllEnvs();for(const path of folders.splice(0))await rm(path,{recursive:true,force:true});});
 async function fixture(){
  const folder=await mkdtemp(join(tmpdir(),'aphrodite-wizard-test-'));folders.push(folder);const values=new Map();
@@ -51,4 +52,11 @@ it('can choose a missing custom domain when resuming a named installation',async
  const domainChooser=vi.fn(async options=>Object.assign(options,{domain:'panel.example.com',zone:'zone-fixture'}));
  const result=await prepareInstall({resume:true},ui,{sessionFactory:async()=>session,interactive:true,domainChooser});
  expect(domainChooser).toHaveBeenCalledOnce();expect(result.options.domain).toBe('panel.example.com');expect(session.state.options.domain).toBe('panel.example.com');expect(result.env.ADMIN_TOKEN).toBe('saved-admin-token-at-least-32-characters');
+});
+it('lets a saved installation edit domain choices and persists the new subdomain',async()=>{
+ const {session,ui}=await fixture();Object.assign(session.state.options,{domain:'old.example.com',zone:'zone',zoneName:'example.com',subdomain:'old'});
+ ui.ask.mockImplementation(async label=>label.startsWith('Subdomain')?'updated':'');
+ const result=await prepareInstall({resume:true},ui,{sessionFactory:async()=>session,interactive:true,domainChooser:(options,interfaceUi,context)=>chooseCloudflareDomain(options,interfaceUi,{...context,request:async()=>({result:[{name:'example.com',id:'zone',account:{id:'a'.repeat(32)}}]})})});
+ expect(result.options.domain).toBe('updated.example.com');expect(session.state.options.subdomain).toBe('updated');expect(session.state.options.zoneName).toBe('example.com');expect(result.env.ADMIN_PATH).toBe('saved-management-path');
+ expect(ui.ask.mock.calls.some(([label])=>label.includes('Subdomain [old]'))).toBe(true);
 });

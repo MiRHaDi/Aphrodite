@@ -1,4 +1,4 @@
-export const stringOptions=['provider','name','account','zone','owner','project','environment','region','plan','repo','branch','host','user','ssh-port','key','fingerprint','domain','port','origin','admin-path','token-env','topology','connections','connection-providers','database-id','state','connection-account','connection-token-env','build-profile','domain-conflict'];
+export const stringOptions=['provider','name','account','zone','base-domain','subdomain','owner','project','environment','region','plan','repo','branch','host','user','ssh-port','key','fingerprint','domain','port','origin','admin-path','token-env','topology','connections','connection-providers','database-id','state','connection-account','connection-token-env','build-profile','domain-conflict'];
 export const booleanOptions=['help','resume','new','add-account','no-save','repair','preview','project-token','result-page','json','non-interactive','include-credentials'];
 export const optionSchema=Object.fromEntries([...stringOptions.map(key=>[key,{type:'string'}]),...booleanOptions.map(key=>[key,{type:'boolean'}])]);
 export function validateOptions(input){

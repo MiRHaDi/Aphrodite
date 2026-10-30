@@ -5,7 +5,7 @@ import {tokenGuide} from './ui.mjs';
 import {chooseCloudflareDomain,normalizeDomain} from './domains.mjs';
 const providers=['workers','pages','railway','render','docker','vps','bundle'];
 const tokenNames={workers:'CLOUDFLARE_API_TOKEN',pages:'CLOUDFLARE_API_TOKEN',railway:'RAILWAY_API_TOKEN',render:'RENDER_API_KEY'};
-const savedKeys=['provider','name','account','zone','domain','connections','connectionProviders','databaseId','topology'];
+const savedKeys=['provider','name','account','zone','zoneName','subdomain','domain','connections','connectionProviders','databaseId','topology'];
 export async function prepareInstall(values,ui,{sessionFactory=openSession,interactive=Boolean(process.stdin.isTTY),environment=process.env,domainChooser=chooseCloudflareDomain}={}){
  const preview=values.preview;
  let session,adding=values['add-account'];
@@ -25,6 +25,9 @@ export async function prepareInstall(values,ui,{sessionFactory=openSession,inter
  const installationName=name(await choose('Installation name',values.name,saved.name||'aphrodite-'+Date.now().toString(36)));
  if(session&&Object.keys(session.state.services).length&&(provider!==saved.provider||installationName!==saved.name))throw Error('Changing an existing management destination requires --new; its current users and database are preserved');
  const options={...values,provider,name:installationName,account:values.account||saved.account,zone:values.zone||saved.zone,domain:values.domain||saved.domain,connections:(adding?saved.connections:values.connections)||saved.connections||'2',connectionProviders:(adding?saved.connectionProviders:values['connection-providers'])||saved.connectionProviders||'workers,pages',databaseId:values['database-id']||saved.databaseId,session};
+ options.zoneName=values['base-domain']||saved.zoneName;options.subdomain=values.subdomain??saved.subdomain;
+ if(values.domain){options.zoneName=undefined;options.subdomain=undefined;if(!values.zone)options.zone=undefined;}
+ if(values['base-domain']||values.subdomain!==undefined){options.domain=undefined;if(values['base-domain']!==saved.zoneName&&!values.zone)options.zone=undefined;}
  if(values['domain-conflict']&&!['reuse','new','fail'].includes(values['domain-conflict']))throw Error('domain-conflict must be reuse, new or fail');
  if(['reuse','new'].includes(values['domain-conflict']))options.askDomain=async()=>values['domain-conflict']==='reuse'?'1':'2';
  else if(interactive&&values['domain-conflict']!=='fail')options.askDomain=label=>ui.ask(label);
@@ -43,6 +46,7 @@ export async function prepareInstall(values,ui,{sessionFactory=openSession,inter
  report('Destination: '+provider+' | deployment name: '+options.name);
  ui.step('Configure provider access and credentials');
  if(values.domain&&!['vps','workers','pages'].includes(provider))throw Error('--domain is supported for VPS and Cloudflare');
+ if((values['base-domain']||values.subdomain!==undefined)&&!['workers','pages'].includes(provider))throw Error('--base-domain and --subdomain are supported for Cloudflare');
  if(preview||provider==='bundle')report('Preview/build-only mode: provider credentials are not required');
  if(tokenNames[provider]&&!preview){
   const envName=values['token-env']||(provider==='railway'&&values['project-token']?'RAILWAY_TOKEN':tokenNames[provider]);
@@ -56,8 +60,8 @@ export async function prepareInstall(values,ui,{sessionFactory=openSession,inter
  }
  if(options.domain)options.domain=normalizeDomain(options.domain);
  if(!preview&&!adding&&['workers','pages'].includes(provider)){
-  const configure=options.domain&&!options.zone||interactive&&!options.domain&&(!saved.name||(await ui.ask('Configure a custom hostname for this installation? [y/N]')).toLowerCase()==='y');
-  if(configure)await domainChooser(options,ui);
+  const configure=interactive?(options.domain||options.zoneName||!saved.name||(await ui.ask('Configure a custom hostname for this installation? [y/N]')).toLowerCase()==='y'):(options.domain||options.zoneName)&&(!options.zone||!options.zoneName||!options.domain);
+  if(configure)await domainChooser(options,ui,{interactive});
   report(options.domain?'Custom hostname: '+options.domain+' | DNS zone: '+options.zone:'Custom hostname not selected; using provider addresses');
  }
  if(provider==='render'&&!preview){options.plan=options.plan||await ui.ask('Render plan with persistent disk (paid; for example starter)');if(options.plan==='free')throw Error('Render persistent disk requires a paid plan');}

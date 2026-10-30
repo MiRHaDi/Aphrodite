@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import {randomUUID} from 'node:crypto';
 import {jsonRequest,required,run,root,verify} from './common.mjs';
 import {lockArtifact} from './address-lock.mjs';
-import {selectPagesDomain,bindPagesDns} from './domains.mjs';
+import {selectPagesDomain,bindPagesDns,domainParts} from './domains.mjs';
 const base='https://api.cloudflare.com/client/v4/';
 export async function deployCloudflare(options,env,artifact){
   report('Configure '+options.provider+' service: '+options.name+' | role: '+(env.DEPLOYMENT_ROLE||'standalone'));
@@ -40,13 +40,19 @@ export async function deployCloudflare(options,env,artifact){
   if(options.provider==='workers'){const subdomain=(await jsonRequest(base+prefix+'workers/subdomain',{token})).result.subdomain;serviceUrl='https://'+options.name+'.'+subdomain+'.workers.dev';}
   else serviceUrl='https://'+options.name+'.pages.dev';
   let domainSelection;
+  if(options.domain){
+    required(options.zone,'--zone for custom domain installation');
+    if(!options.zoneName){const zone=(await jsonRequest(base+'zones/'+options.zone,{token})).result;options.zoneName=zone.name;if(zone.account?.id&&zone.account.id!==account)throw Error('DNS zone belongs to another Cloudflare account');}
+    domainParts(options.domain,options.zoneName);
+  }
   if(options.domain&&options.provider==='pages'){
     required(options.zone,'--zone for custom domain installation');
     const requested=options.domain;
-    domainSelection=await selectPagesDomain(record.customDomain||requested,new URL(serviceUrl).hostname,async host=>(await jsonRequest(base+'zones/'+options.zone+'/dns_records?name='+encodeURIComponent(host),{token})).result,options.askDomain);
+    domainSelection=await selectPagesDomain(requested,new URL(serviceUrl).hostname,async host=>(await jsonRequest(base+'zones/'+options.zone+'/dns_records?name='+encodeURIComponent(host),{token})).result,options.askDomain,{zoneName:options.zoneName,projectName:options.domainProjectName||options.name});
     options.domain=domainSelection.domain;
     if(options.domain!==requested)report('DNS hostname already in use; selected '+options.domain+' without changing existing records');
     record.customDomain=options.domain;
+    if(session&&env.DEPLOYMENT_ROLE!=='connection')Object.assign(session.state.options,{domain:options.domain,zone:options.zone,...domainParts(options.domain,options.zoneName)});
     if(domainSelection.replacement){record.dnsBeforeReplacement=domainSelection.replacement;report('Confirmed reuse of '+options.domain+'; subscription hostname stays unchanged');}
     await checkpoint();
   }

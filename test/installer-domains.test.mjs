@@ -32,3 +32,16 @@ it('resolves the zone for an explicit hostname without another prompt',async()=>
  await chooseCloudflareDomain(options,{ask:async()=>{throw Error('Unexpected prompt')}},{request:async()=>({result:[{name:'example.com',id:'zone',account:{id:'account'}}]})});
  expect(options.zone).toBe('zone');expect(options.account).toBe('account');
 });
+it('shows saved domain and subdomain as editable defaults on interactive resume',async()=>{
+ const request=async()=>({result:[{name:'example.net',id:'other'},{name:'example.com',id:'saved'}]});
+ const options={name:'new-project',domain:'previous.example.com',zone:'saved'};const prompts=[];
+ await chooseCloudflareDomain(options,{ask:async prompt=>{prompts.push(prompt);return '';}},{request,interactive:true});
+ expect(prompts[0]).toContain('[2]');expect(prompts[1]).toContain('[previous]');expect(options.domain).toBe('previous.example.com');expect(options.zoneName).toBe('example.com');expect(options.subdomain).toBe('previous');
+ const answers=['1','changed'];
+ await chooseCloudflareDomain(options,{ask:async()=>answers.shift()},{request,interactive:true});expect(options.domain).toBe('changed.example.net');expect(options.zone).toBe('other');
+});
+it('accepts separate base domain and subdomain without prompting in automation',async()=>{
+ const options={name:'test3',zoneName:'example.com',subdomain:'api'};
+ await chooseCloudflareDomain(options,{ask:async()=>{throw Error('Unexpected prompt');}},{request:async()=>({result:[{name:'example.com',id:'zone'}]})});
+ expect(options.domain).toBe('api.example.com');expect(options.subdomain).toBe('api');
+});

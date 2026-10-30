@@ -8,6 +8,11 @@ import {deployRender} from '../installer/render.mjs';
 let directory;
 afterEach(async()=>{vi.unstubAllGlobals();if(directory)await rm(directory,{recursive:true,force:true});});
 describe('installer adapters',()=>{
+ it('refuses an out-of-zone custom hostname before creating or uploading resources',async()=>{
+  const fetcher=vi.fn(async()=>new Response(null,{status:404}));vi.stubGlobal('fetch',fetcher);
+  await expect(deployCloudflare({provider:'pages',account:'a'.repeat(32),name:'fixture',token:'fake',domain:'example-2.com',zone:'zone',zoneName:'example.com'},configuration({}),{})).rejects.toThrow('outside the selected DNS domain');
+  expect(fetcher).toHaveBeenCalledTimes(1);
+ });
  it('stops immediately on a Cloudflare runtime exception instead of repeating health checks',async()=>{
   const fetcher=vi.fn(async()=>new Response('error code: 1101',{status:500}));vi.stubGlobal('fetch',fetcher);
   await expect(verify('https://test.example',configuration({}),{attempts:24,delay:0})).rejects.toThrow('1101');

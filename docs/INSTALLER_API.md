@@ -42,6 +42,8 @@ Another program can send the JSON envelope to `--config -` over stdin. This enve
 
 Custom domain policy is explicit for unattended jobs:
 
+Cloudflare callers can specify `base-domain` (the DNS zone name) and `subdomain` separately instead of a full `domain`. Both choices are saved for interactive resume. Conflict resolution only changes a subdomain within that selected zone. MX/TXT records are preserved and are not connection targets.
+
 | `domain-conflict` | Behavior |
 |---|---|
 | `reuse` | Keep the exact hostname; explicitly authorize replacing one conflicting A/AAAA/CNAME record. The prior record is saved in the installation checkpoint. Provider domain-attachment rules still apply. |
