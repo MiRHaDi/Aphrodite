@@ -11,11 +11,11 @@ export async function connectionRegistry(env:Env):Promise<Endpoint[]>{
 export async function deploymentConnections(request:Request,env:Env):Promise<Response>{
  if(env.DEPLOYMENT_ROLE!=='management')return error('Management role required',409);
  if(request.method==='GET')return json({ok:true,endpoints:await connectionRegistry(env)});
- if(request.method!=='POST')return error('Method not allowed',405);
+ if(!['POST','PUT'].includes(request.method))return error('Method not allowed',405);
  let input:unknown;try{input=await request.json()}catch{return error('Invalid JSON',400)}
  const add=(input as {endpoints?:unknown[]})?.endpoints;
  if(!Array.isArray(add)||add.length>16||!add.every(valid))return error('Invalid connection endpoints',400);
- const current=await connectionRegistry(env);
+ const current=request.method==='PUT'?[]:await connectionRegistry(env);
  const merged=[...current,...add].filter((item,index,list)=>list.findIndex(other=>other.host===item.host&&other.sni===item.sni&&other.address===item.address)===index);
  if(merged.length>64)return error('Connection limit reached',409);
  // Merge in SQLite so concurrent installers cannot overwrite each other's nodes.

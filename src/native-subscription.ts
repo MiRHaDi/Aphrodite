@@ -7,6 +7,7 @@ import { ledger } from './native-accounts';
 import { text } from './responses';
 import type { Env } from './types';
 import {tunnelMap} from './config';
+import qrcode from 'qrcode-generator';
 
 export function selectedAddresses(account:NativeAccount,host:string,now=Date.now()):string[]{
   const settings=settingsFor(account),pool=[...new Set(settings.addresses)];if(!pool.length)return [host];
@@ -24,10 +25,10 @@ export function countryLabel(country:string):string{
 }
 function escapeHtml(value:string):string{return value.replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]||char));}
 function browserPage(request:Request,account:NativeAccount,status:{usedBytes:number;requests:number},settings:ReturnType<typeof settingsFor>,links:string[]):Response {
- const url=new URL(request.url),base=url.origin+url.pathname+'?token='+encodeURIComponent(url.searchParams.get('token')||'');
+ const url=new URL(request.url),token=url.searchParams.get('token'),base=url.origin+url.pathname+(token?'?token='+encodeURIComponent(token):'');
  const rows:Array<[string,string]>=[['کاربر',account.username],['وضعیت',account.enabled?'فعال':'غیرفعال'],['مصرف',String(status.usedBytes)+' bytes'],['درخواست‌ها',String(status.requests)],['انقضا',account.expires_at?new Date(account.expires_at*1000).toISOString():'بدون انقضا']];
  const options:Array<[string,string]>=[['raw','متن خام'],['base64','Base64'],['clash','Clash/Mihomo'],['sing-box','Sing-box'],['xray','Xray']];
- const html='<!doctype html><html lang="fa" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Aphrodite · '+escapeHtml(account.username)+'</title><style>body{font-family:system-ui;background:#101322;color:#f5f7ff;max-width:760px;margin:40px auto;padding:20px}main{background:#1a2035;border:1px solid #303a5d;border-radius:18px;padding:24px}h1{margin-top:0}table{width:100%;border-spacing:0}td{padding:10px;border-bottom:1px solid #303a5d}a{display:inline-block;color:#9de8dc;background:#263957;padding:10px 14px;border-radius:10px;margin:6px;text-decoration:none;direction:ltr}.links{margin-top:18px}</style><main><h1>وضعیت اشتراک Aphrodite</h1><table>'+rows.map(r=>'<tr><td>'+escapeHtml(r[0])+'</td><td dir="ltr">'+escapeHtml(r[1])+'</td></tr>').join('')+'</table><p>لینک اصلی را در برنامهٔ سازگار وارد کنید؛ قالب مناسب را انتخاب کنید.</p><div class="links"><a href="'+escapeHtml(base)+'">لینک اشتراک</a>'+options.map(([fmt,label])=>'<a href="'+escapeHtml(base+'&format='+fmt)+'">'+label+'</a>').join('')+'</div><p>تعداد کانفیگ‌های فعلی: '+links.length+' · سقف داده: '+(settings.dataLimitBytes?settings.dataLimitBytes+' bytes':'نامحدود')+'</p></main></html>';
+ const html='<!doctype html><html lang="fa" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Aphrodite · '+escapeHtml(account.username)+'</title><style>body{font-family:system-ui;background:#101322;color:#f5f7ff;max-width:760px;margin:40px auto;padding:20px}main{background:#1a2035;border:1px solid #303a5d;border-radius:18px;padding:24px}h1{margin-top:0}table{width:100%;border-spacing:0}td{padding:10px;border-bottom:1px solid #303a5d}a{display:inline-block;color:#9de8dc;background:#263957;padding:10px 14px;border-radius:10px;margin:6px;text-decoration:none;direction:ltr}.links{margin-top:18px}.qr{background:#fff;border-radius:12px;padding:12px;width:190px;margin-top:18px}</style><main><h1>وضعیت اشتراک Aphrodite</h1><table>'+rows.map(r=>'<tr><td>'+escapeHtml(r[0])+'</td><td dir="ltr">'+escapeHtml(r[1])+'</td></tr>').join('')+'</table><p>لینک اصلی را در برنامهٔ سازگار وارد کنید؛ قالب مناسب را انتخاب کنید.</p><div class="links"><a href="'+escapeHtml(base)+'">لینک اشتراک</a>'+options.map(([fmt,label])=>'<a href="'+escapeHtml(base+'&format='+fmt)+'">'+label+'</a>').join('')+'</div><img class="qr" alt="Subscription QR" src="'+escapeHtml(base+'&format=qr')+'"><p>تعداد کانفیگ‌های فعلی: '+links.length+' · سقف داده: '+(settings.dataLimitBytes?settings.dataLimitBytes+' bytes':'نامحدود')+'</p></main></html>';
  return new Response(html,{status:200,headers:{'content-type':'text/html; charset=utf-8','cache-control':'private, no-store','x-content-type-options':'nosniff'}});
 }
 export function configuredCountries(routes:Record<string,unknown[]>,relay:boolean):string[]{
@@ -58,9 +59,13 @@ export async function nativeSubscription(request:Request,env:Env,account:NativeA
   const routes=tunnelMap(env),countries=configuredCountries(routes,Boolean(env.NATIVE_RELAY_UUID));
   const url=new URL(request.url),edgeEnv={...env,PUBLIC_EDGE_HOST:env.PUBLIC_EDGE_HOST||url.hostname},endpoint=subscriptionEndpoint(edgeEnv,account.username),host=endpoint.host;
   const endpoints=[endpoint,...subscriptionEndpoints(edgeEnv).filter(e=>e.address!==endpoint.address||e.sni!==endpoint.sni||e.host!==endpoint.host)];
-  const links=endpoints.flatMap((e,index)=>nativeLinks(account,e.host,Date.now(),countries,e).map(link=>{const u=new URL(link);u.hash=encodeURIComponent(decodeURIComponent(u.hash.slice(1))+' · '+(index+1));return u.href;}));
+  const links=endpoints.flatMap((e,index)=>{
+    const endpointCountries=e.country&&e.country!=='smart'?[e.country]:countries;
+    return nativeLinks(account,e.host,Date.now(),endpointCountries,e).map(link=>{const u=new URL(link);const label=(e.name?e.name+' · ':'')+decodeURIComponent(u.hash.slice(1));u.hash=encodeURIComponent(label+' · '+(index+1));return u.href;});
+  });
   const client=clientProfile(request);
   const accepts=(request.headers.get('accept')||'').toLowerCase(),agent=(request.headers.get('user-agent')||'').toLowerCase();
+  if(url.searchParams.get('format')==='qr'){const qr=qrcode(0,'M');qr.addData(url.origin+url.pathname+(url.search||''));qr.make();return new Response(qr.createSvgTag({cellSize:5,margin:8,scalable:true}),{headers:{'content-type':'image/svg+xml','cache-control':'private, no-store','x-content-type-options':'nosniff'}});}
   if(accepts.includes('text/html')&&client.family==='generic'&&!/curl|wget|python|go-http|axios|node-fetch/.test(agent))return browserPage(request,account,status,settings,links);
   const format=client.format;
   let body='';
