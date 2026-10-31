@@ -9,6 +9,7 @@ import type { Env } from './types';
 import {tunnelMap} from './config';
 import qrcode from 'qrcode-generator';
 import {subscriptionAppearance} from './native-appearance';
+import {countryExits} from './country-exits';
 
 export function selectedAddresses(account:NativeAccount,host:string,now=Date.now()):string[]{
   const settings=settingsFor(account),pool=[...new Set(settings.addresses)];if(!pool.length)return [host];
@@ -61,7 +62,7 @@ export async function nativeSubscription(request:Request,env:Env,account:NativeA
   const response=await ledger(env,account);if(!response.ok)return text('Accounting unavailable',503);
   const status=await response.json() as {usedBytes:number;requests:number};
   if((settings.dataLimitBytes&&status.usedBytes>=settings.dataLimitBytes)||(settings.requestLimit&&status.requests>=settings.requestLimit))return text('Account quota exceeded',403,{'cache-control':'no-store'});
-  const routes=tunnelMap(env),countries=configuredCountries(routes,Boolean(env.NATIVE_RELAY_UUID));
+  const routes=tunnelMap(env),countries=env.AUTO_COUNTRY_EXITS==='true'?orderedCountries(['smart',...Object.keys(countryExits(env))]):configuredCountries(routes,Boolean(env.NATIVE_RELAY_UUID));
   const url=new URL(request.url),edgeEnv={...env,PUBLIC_EDGE_HOST:env.PUBLIC_EDGE_HOST||url.hostname},endpoint=subscriptionEndpoint(edgeEnv,account.username),host=endpoint.host;
   const endpoints=[endpoint,...subscriptionEndpoints(edgeEnv).filter(e=>e.address!==endpoint.address||e.sni!==endpoint.sni||e.host!==endpoint.host)];
   const links=endpoints.flatMap((e,index)=>{

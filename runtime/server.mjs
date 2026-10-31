@@ -11,10 +11,12 @@ import {database} from './database.mjs';
 import management from '../src/management-worker.ts';
 import dataWorker from '../src/database-worker.ts';
 import {installCompatibility,socketFactory} from './compat.mjs';
+import {createCountryRefresher} from './country-exit-refresh.mjs';
 export async function start(options={}){
   installCompatibility();
   const settings={...process.env,...options.env};
   if(!settings.ADMIN_TOKEN||settings.ADMIN_TOKEN.length<24||!/^[A-Za-z0-9_-]{16,128}$/.test(settings.ADMIN_PATH||''))throw Error('ADMIN_TOKEN and ADMIN_PATH must be configured.');
+  if(settings.AUTO_COUNTRY_EXITS==='true'&&((settings.DEPLOYMENT_ROLE&&settings.DEPLOYMENT_ROLE!=='standalone')||settings.EDGE_ENDPOINTS_JSON&&settings.EDGE_ENDPOINTS_JSON!=='[]'||settings.CONNECTION_ENDPOINTS_JSON&&settings.CONNECTION_ENDPOINTS_JSON!=='[]'))throw Error('Automatic country exits require standalone Node without remote connection endpoints');
   if(settings.DATA_CONTROL_URL&&settings.DEPLOYMENT_ROLE!=='management')throw Error('Remote database requires management role');
   const DB=settings.DATA_CONTROL_URL?undefined:await database(settings.DATABASE_PATH||join(settings.DATA_DIR||'/data','aphrodite.sqlite'),options.migrations||join(dirname(fileURLToPath(import.meta.url)),'migrations'));
   const env={...settings,DB,CONTROL_PLANE_ORIGIN:settings.CONTROL_PLANE_ORIGIN||'',NATIVE_ENABLED:settings.NATIVE_ENABLED||'true'};
@@ -34,6 +36,9 @@ export async function start(options={}){
     }catch{network.end('HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n');}
   });
   await new Promise(resolve=>server.listen(Number(options.port??settings.PORT??8080),settings.BIND_ADDRESS||'0.0.0.0',resolve));
-  return {server,env,address:server.address(),async close(){for(const client of sockets.clients)client.terminate();await new Promise(resolve=>server.close(resolve));await Promise.allSettled(tasks);DB?.close();}};
+  const refresher=settings.AUTO_COUNTRY_EXITS==='true'?createCountryRefresher({env}):null;
+  const refreshTimer=refresher?setInterval(()=>ctx.waitUntil(refresher.refresh()),60000):null;
+  refreshTimer?.unref();if(refresher)ctx.waitUntil(refresher.refresh());
+  return {server,env,address:server.address(),async close(){if(refreshTimer)clearInterval(refreshTimer);refresher?.stop();for(const client of sockets.clients)client.terminate();await new Promise(resolve=>server.close(resolve));await Promise.allSettled(tasks);DB?.close();}};
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)start().then(()=>console.log('Service ready')).catch(()=>{console.error('Startup failed: check runtime configuration and database access.');process.exitCode=1;});

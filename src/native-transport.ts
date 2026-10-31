@@ -7,6 +7,7 @@ import { connectDestination, joinBytes, parseVless, resolver, type Connection } 
 import type { Env } from './types';
 import { text } from './responses';
 import {transportFailure,type TransportPhase} from './native-errors';
+import {countryProxies} from './country-exits';
 
 export async function nativeTransport(request:Request,env:Env,ctx:ExecutionContext,factory?:SocketFactory):Promise<Response>{
   if(!nativeEnabled(env))return text('Native core unavailable',503);
@@ -39,8 +40,8 @@ export async function nativeTransport(request:Request,env:Env,ctx:ExecutionConte
       const settings=settingsFor(account);udp=parsed.udp;data=header.slice(parsed.offset);header=new Uint8Array(0);
       if(!udp){
         phase='destination';
-        const proxies=settings.proxies.length?settings.proxies:[undefined];let lastError:unknown;
         const country=new URL(request.url).pathname.split('/')[3]||'smart';
+        const proxies=countryProxies(env,country)||(settings.proxies.length?settings.proxies:[undefined]);let lastError:unknown;
         for(const proxy of proxies){try{connection=await connectDestination(parsed.host,parsed.port,proxy,resolver(settings.blockAdult,settings.blockAds),factory||relayFactory(env,country));break}catch(error){lastError=error;if(!settings.rotateProxy)break}}
         if(!connection)throw lastError||new Error('No route');
         server.send(Uint8Array.of(parsed.version,0));

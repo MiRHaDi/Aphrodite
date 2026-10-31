@@ -1,4 +1,6 @@
 export interface Env {
+  AUTO_COUNTRY_EXITS?: string;
+  VERIFIED_COUNTRY_EXITS_JSON?: string;
   DEPLOYMENT_ROLE?: 'management' | 'connection' | 'standalone' | 'database';
   DATA_CONTROL_URL?: string;
   DATA_CONTROL_PATH?: string;
