@@ -26,7 +26,10 @@ export function rotationEpoch(env:Env,now=Date.now()):number {return Math.floor(
 export function cleanSubscriptionName(value:string):string {
   if(/smart|auto|هوشمند|خودکار|🧠/i.test(value))return '🧠 هوشمند';
   const countries:Array<[RegExp,string]>=[[/🇮🇷|iran|ایران|\bIR\b/i,'🇮🇷 ایران'],[/🇺🇸|united states|america|آمریکا|\bUS\b/i,'🇺🇸 آمریکا'],[/🇳🇱|netherlands|هلند|\bNL\b/i,'🇳🇱 هلند'],[/🇸🇬|singapore|سنگاپور|\bSG\b/i,'🇸🇬 سنگاپور'],[/🇩🇪|germany|آلمان|\bDE\b/i,'🇩🇪 آلمان'],[/🇹🇷|turkey|ترکیه|\bTR\b/i,'🇹🇷 ترکیه']];
-  return countries.find(([pattern])=>pattern.test(value))?.[1]||'اتصال';
+  const known=countries.find(([pattern])=>pattern.test(value))?.[1];if(known)return known;
+  const flag=value.match(/[\u{1F1E6}-\u{1F1FF}]{2}/u)?.[0];
+  if(flag){const code=[...flag].map(c=>String.fromCharCode(c.codePointAt(0)!-127397)).join('');const name=new Intl.DisplayNames(['fa'],{type:'region'}).of(code);if(name&&name!==code)return flag+' '+name;}
+  return 'اتصال';
 }
 function decode64(value:string):string{return new TextDecoder('utf-8',{fatal:true}).decode(Uint8Array.from(atob(value.replace(/\s/g,'')),char=>char.charCodeAt(0)));}
 function encode64(value:string):string {let binary='';for(const byte of new TextEncoder().encode(value))binary+=String.fromCharCode(byte);return btoa(binary);}
